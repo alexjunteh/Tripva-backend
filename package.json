@@ -1,0 +1,19 @@
+{
+  "name": "tripai-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AI trip planner backend — Vercel serverless functions",
+  "main": "api/server.js",
+  "scripts": {
+    "start": "node api/server.js",
+    "dev": "node --watch api/server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "express": "^4.18.2",
+    "zod": "^3.22.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
