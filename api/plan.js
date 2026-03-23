@@ -1,6 +1,6 @@
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 import { planInputSchema, formatZodError } from '../lib/schema.js';
-import { generatePlan, generatePlanStreamed } from '../lib/claude.js';
+import { generatePlan, generatePlanStreamed, generatePlanProgressive } from '../lib/claude.js';
 import { enrichWithAffiliateLinks } from '../lib/affiliate.js';
 
 /**
@@ -62,8 +62,7 @@ export default async function handler(req, res) {
     sendEvent({ type: 'start', message: 'Planning your trip...' });
 
     try {
-      const rawState = await generatePlanStreamed(input, sendEvent);
-      const tripState = enrichWithAffiliateLinks(rawState, input.travelers || 2);
+      const tripState = await generatePlanProgressive(input, sendEvent);
       sendEvent({ type: 'done', data: tripState });
     } catch (err) {
       sendEvent({ type: 'error', message: formatErrorMessage(err) });
