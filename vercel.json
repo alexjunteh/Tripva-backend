@@ -1,9 +1,11 @@
 {
   "version": 2,
   "functions": {
-    "api/*.js": {
-      "maxDuration": 60
-    }
+    "api/plan.js": { "maxDuration": 300 },
+    "api/patch.js": { "maxDuration": 300 },
+    "api/save.js":  { "maxDuration": 30 },
+    "api/trip.js":  { "maxDuration": 30 },
+    "api/health.js":{ "maxDuration": 10 }
   },
   "headers": [
     {
