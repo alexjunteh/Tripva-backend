@@ -52,8 +52,8 @@ const mockPlan = {
 const enriched = enrichPlan(mockPlan);
 const colItem = enriched.days[0].timeline.find(t => t.title.toLowerCase().includes('colosseum'));
 assert(colItem && colItem.history, 'Colosseum should have history after enrichPlan');
-const treviItem = enriched.days[0].timeline.find(t => t.title.toLowerCase().includes('trevi'));
-assert(treviItem && treviItem.history, 'Trevi should have history after enrichPlan');
+const treviItem = enriched.days[0].timeline.find(t => t.type === 'activity' && t.title.toLowerCase().includes('trevi'));
+assert(treviItem && treviItem.history, 'Trevi activity should have history after enrichPlan');
 console.log('✅ Test 7: enrichPlan enriches activities');
 
 // ── Test 8: enrichPlan adds photospots to days ────────────────────────────────
