@@ -8,6 +8,7 @@ import express from 'express';
 import planHandler from './plan.js';
 import patchHandler from './patch.js';
 import healthHandler from './health.js';
+import ticketHandler from './ticket.js';
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(express.json({ limit: '2mb' }));
 app.all('/api/plan', planHandler);
 app.all('/api/patch', patchHandler);
 app.all('/api/health', healthHandler);
+app.all('/api/ticket', ticketHandler);
 
 // 404 for unknown routes
 app.use((req, res) => {
@@ -30,6 +32,7 @@ app.listen(PORT, () => {
   console.log(`  GET  http://localhost:${PORT}/api/health`);
   console.log(`  POST http://localhost:${PORT}/api/plan`);
   console.log(`  POST http://localhost:${PORT}/api/patch`);
+  console.log(`  POST http://localhost:${PORT}/api/ticket`);
   console.log();
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('⚠  ANTHROPIC_API_KEY is not set — requests will fail');
