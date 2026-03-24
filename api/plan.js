@@ -2,6 +2,7 @@ import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 import { planInputSchema, formatZodError } from '../lib/schema.js';
 import { generatePlan, generatePlanStreamed, generatePlanProgressive } from '../lib/claude.js';
 import { enrichWithAffiliateLinks } from '../lib/affiliate.js';
+import { validateItinerary } from '../lib/itinerary-validator.js';
 
 /**
  * POST /api/plan
@@ -62,8 +63,10 @@ export default async function handler(req, res) {
     sendEvent({ type: 'start', message: 'Planning your trip...' });
 
     try {
-      const tripState = await generatePlanProgressive(input, sendEvent);
-      sendEvent({ type: 'done', data: tripState });
+      const rawPlan = await generatePlanProgressive(input, sendEvent);
+      const { plan: tripState, warnings, fixesApplied } = validateItinerary(rawPlan);
+      if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
+      sendEvent({ type: 'done', data: tripState, warnings });
     } catch (err) {
       sendEvent({ type: 'error', message: formatErrorMessage(err) });
     } finally {
@@ -75,9 +78,11 @@ export default async function handler(req, res) {
 
   // ── Standard JSON response ─────────────────────────────────────────────────
   try {
-    const rawState = await generatePlan(input);
-    const tripState = enrichWithAffiliateLinks(rawState, input.travelers || 2);
-    return res.status(200).json(tripState);
+    const rawPlanSync = await generatePlan(input);
+    const enriched = enrichWithAffiliateLinks(rawPlanSync, input.travelers || 2);
+    const { plan: tripState, warnings, fixesApplied } = validateItinerary(enriched);
+    if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
+    return res.status(200).json({ ...tripState, _warnings: warnings });
   } catch (err) {
     return handleError(err, res);
   }
