@@ -26,7 +26,9 @@ export default async function handler(req, res) {
 
     const plan = await raw.json();
     res.setHeader('Cache-Control', 'public, max-age=3600');
-    return res.status(200).json(plan);
+    // Normalise: if plan already has rawPlan key it's the full state; otherwise wrap it
+    const response = plan.rawPlan ? plan : { rawPlan: plan };
+    return res.status(200).json(response);
 
   } catch (err) {
     return res.status(500).json({ error: 'Internal server error', message: err.message });
