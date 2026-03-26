@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-3-5-20240307',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 1024,
       system: 'You are a travel packing assistant. Return ONLY valid JSON, no markdown.',
       messages: [{ role: 'user', content: userPrompt }]
