@@ -1,43 +1,44 @@
-// api/packing.js — POST /api/packing — AI packing list generator
 import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const MODEL = 'claude-haiku-4-5-20251001';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-
+  Object.entries(CORS).forEach(([k,v]) => res.setHeader(k, v));
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  const { destination, startDate, endDate, activities, tripStyle, people } = req.body || {};
-
+  const { destination, startDate, endDate, activities = [], tripStyle = 'mid-range', people = 2 } = req.body || {};
   if (!destination) return res.status(400).json({ error: 'destination required' });
 
-  const userPrompt = `Packing list for ${people || 1} people going to ${destination} ${startDate || ''} to ${endDate || ''}, style: ${tripStyle || 'mid-range'}, activities: ${activities || 'sightseeing, dining'}. Return: {"clothing":[],"documents":[],"electronics":[],"toiletries":[],"misc":[]}`;
-
   try {
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+    const actStr = Array.isArray(activities) ? activities.join(', ') : String(activities || 'general sightseeing');
+    const msg = await client.messages.create({
+      model: MODEL,
       max_tokens: 1024,
-      system: 'You are a travel packing assistant. Return ONLY valid JSON, no markdown.',
-      messages: [{ role: 'user', content: userPrompt }]
+      system: 'You are a travel packing assistant. Return ONLY valid JSON, no markdown, no explanation.',
+      messages: [{
+        role: 'user',
+        content: `Packing list for ${people} people going to ${destination} from ${startDate||'TBD'} to ${endDate||'TBD'}. Style: ${tripStyle}. Activities: ${actStr}. Return exactly: {"clothing":[],"documents":[],"electronics":[],"toiletries":[],"misc":[]}`
+      }]
     });
 
-    const raw = message.content?.[0]?.text || '{}';
-    // Strip any accidental markdown fences
-    const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
-    let data;
+    let parsed;
     try {
-      data = JSON.parse(cleaned);
-    } catch (e) {
-      return res.status(500).json({ error: 'Invalid JSON from AI', raw: cleaned.slice(0, 200) });
+      parsed = JSON.parse(msg.content[0].text.trim());
+    } catch {
+      const match = msg.content[0].text.match(/\{[\s\S]+\}/);
+      parsed = match ? JSON.parse(match[0]) : { clothing: [], documents: [], electronics: [], toiletries: [], misc: [] };
     }
-
-    return res.json(data);
-  } catch (e) {
-    console.error('packing error:', e);
-    return res.status(500).json({ error: e.message || 'AI error' });
+    return res.json(parsed);
+  } catch (err) {
+    console.error('packing error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 }
