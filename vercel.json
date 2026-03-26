@@ -5,7 +5,8 @@
     "api/patch.js": { "maxDuration": 300 },
     "api/save.js":  { "maxDuration": 30 },
     "api/trip.js":  { "maxDuration": 30 },
-    "api/health.js":{ "maxDuration": 10 }
+    "api/health.js":{ "maxDuration": 10 },
+    "api/stats.js": { "maxDuration": 15 }
   },
   "headers": [
     {

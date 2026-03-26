@@ -9,6 +9,7 @@ import planHandler from './plan.js';
 import patchHandler from './patch.js';
 import healthHandler from './health.js';
 import ticketHandler from './ticket.js';
+import packingHandler from './packing.js';
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.all('/api/plan', planHandler);
 app.all('/api/patch', patchHandler);
 app.all('/api/health', healthHandler);
 app.all('/api/ticket', ticketHandler);
+app.all('/api/packing', packingHandler);
 
 // 404 for unknown routes
 app.use((req, res) => {
@@ -33,6 +35,7 @@ app.listen(PORT, () => {
   console.log(`  POST http://localhost:${PORT}/api/plan`);
   console.log(`  POST http://localhost:${PORT}/api/patch`);
   console.log(`  POST http://localhost:${PORT}/api/ticket`);
+  console.log(`  POST http://localhost:${PORT}/api/packing`);
   console.log();
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('⚠  ANTHROPIC_API_KEY is not set — requests will fail');
