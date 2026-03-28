@@ -34,7 +34,7 @@ export default async function handler(req, res) {
         'Content-Type':         'application/json',
         'Accept':               'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent':           'Roam-TripPlanner/1.0',
+        'User-Agent':           'Tripva-TripPlanner/1.0',
       },
       body: JSON.stringify({
         message: `Add trip plan ${id}`,

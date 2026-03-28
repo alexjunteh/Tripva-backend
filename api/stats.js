@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     const headers = {
       'Authorization': `token ${GITHUB_TOKEN}`,
       'Accept': 'application/vnd.github.v3+json',
-      'User-Agent': 'roam-tripai'
+      'User-Agent': 'tripva-tripai'
     };
 
     while (page <= 5) {

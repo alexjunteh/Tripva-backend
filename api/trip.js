@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     const raw = await fetch(`${RAW_BASE}/${id}.json`, {
-      headers: { 'User-Agent': 'Roam-TripPlanner/1.0' },
+      headers: { 'User-Agent': 'Tripva-TripPlanner/1.0' },
     });
 
     if (raw.status === 404) return res.status(404).json({ error: 'Plan not found' });
