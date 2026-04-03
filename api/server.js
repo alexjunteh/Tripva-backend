@@ -1,6 +1,6 @@
 /**
  * Local Express development server.
- * In production, Vercel serves api/plan.js, api/patch.js, api/health.js directly.
+ * In production, Vercel serves api/*.js directly.
  *
  * Usage: node api/server.js  (or: npm start)
  */
@@ -10,20 +10,26 @@ import patchHandler from './patch.js';
 import healthHandler from './health.js';
 import ticketHandler from './ticket.js';
 import packingHandler from './packing.js';
+import userHandler from './user.js';
 
 const app = express();
-
-// Parse JSON bodies (Vercel does this automatically; Express needs it explicit)
 app.use(express.json({ limit: '2mb' }));
 
-// Mount handlers — Express req/res is fully compatible with the Vercel handler signature
 app.all('/api/plan', planHandler);
 app.all('/api/patch', patchHandler);
 app.all('/api/health', healthHandler);
 app.all('/api/ticket', ticketHandler);
 app.all('/api/packing', packingHandler);
 
-// 404 for unknown routes
+// User / auth / trips endpoints (all routed through user.js)
+app.all('/api/user/magic-link', userHandler);
+app.all('/api/user/verify', userHandler);
+app.all('/api/user/me', userHandler);
+app.all('/api/user/trips/save', userHandler);
+app.all('/api/user/trips/:id', userHandler);
+app.all('/api/user/trips', userHandler);
+app.all('/api/user', userHandler);
+
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', path: req.path });
 });
@@ -33,10 +39,9 @@ app.listen(PORT, () => {
   console.log(`TripAI backend running at http://localhost:${PORT}`);
   console.log(`  GET  http://localhost:${PORT}/api/health`);
   console.log(`  POST http://localhost:${PORT}/api/plan`);
-  console.log(`  POST http://localhost:${PORT}/api/patch`);
-  console.log(`  POST http://localhost:${PORT}/api/ticket`);
-  console.log(`  POST http://localhost:${PORT}/api/packing`);
-  console.log();
+  console.log(`  POST http://localhost:${PORT}/api/user/magic-link`);
+  console.log(`  GET  http://localhost:${PORT}/api/user/trips`);
+  console.log(`  POST http://localhost:${PORT}/api/user/trips/save`);
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('⚠  ANTHROPIC_API_KEY is not set — requests will fail');
   }
