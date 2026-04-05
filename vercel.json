@@ -1,29 +1,81 @@
 {
   "version": 2,
   "functions": {
-    "api/plan.js": { "maxDuration": 300 },
-    "api/patch.js": { "maxDuration": 300 },
-    "api/save.js": { "maxDuration": 30 },
-    "api/trip.js": { "maxDuration": 30 },
-    "api/health.js": { "maxDuration": 10 },
-    "api/stats.js": { "maxDuration": 15 },
-    "api/plan-fast.js": { "maxDuration": 120 },
-    "api/user.js": { "maxDuration": 15 }
+    "api/plan.js": {
+      "maxDuration": 300
+    },
+    "api/patch.js": {
+      "maxDuration": 300
+    },
+    "api/save.js": {
+      "maxDuration": 30
+    },
+    "api/trip.js": {
+      "maxDuration": 30
+    },
+    "api/health.js": {
+      "maxDuration": 10
+    },
+    "api/stats.js": {
+      "maxDuration": 15
+    },
+    "api/plan-fast.js": {
+      "maxDuration": 120
+    },
+    "api/user.js": {
+      "maxDuration": 15
+    }
   },
   "rewrites": [
-    { "source": "/api/user/magic-link", "destination": "/api/user" },
-    { "source": "/api/user/verify", "destination": "/api/user" },
-    { "source": "/api/user/trips/save", "destination": "/api/user" },
-    { "source": "/api/user/trips/:id", "destination": "/api/user" },
-    { "source": "/api/user/trips", "destination": "/api/user" },
-    { "source": "/api/user/me", "destination": "/api/user" }
+    {
+      "source": "/api/user/magic-link",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/verify",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/signup",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/signin",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/reset-password",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/me",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/trips/save",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/trips/:id",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/trips",
+      "destination": "/api/user"
+    }
   ],
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
       ]
     }
   ]
