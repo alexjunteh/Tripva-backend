@@ -61,6 +61,11 @@ export default async function handler(req, res) {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
 
+    // Keep-alive ping every 20s to prevent Cloudflare/CDN idle timeout (100s default)
+    const keepAlive = setInterval(() => {
+      try { res.write(': ping\n\n'); } catch(e) { clearInterval(keepAlive); }
+    }, 20000);
+
     sendEvent({ type: 'start', message: 'Planning your trip...' });
 
     try {
@@ -72,6 +77,7 @@ export default async function handler(req, res) {
     } catch (err) {
       sendEvent({ type: 'error', message: formatErrorMessage(err) });
     } finally {
+      clearInterval(keepAlive);
       res.end();
     }
 
