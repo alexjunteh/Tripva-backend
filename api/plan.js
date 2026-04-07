@@ -1,9 +1,10 @@
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
-import { planInputSchema, formatZodError } from '../lib/schema.js';
+import { planInputSchema, formatZodError, normalizeTripState } from '../lib/schema.js';
 import { generatePlan, generatePlanStreamed, generatePlanProgressive } from '../lib/claude.js';
 import { enrichWithAffiliateLinks } from '../lib/affiliate.js';
 import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
+import { savePlanToGitHub } from '../lib/save-github.js';
 
 /**
  * POST /api/plan
@@ -71,9 +72,30 @@ export default async function handler(req, res) {
     try {
       const rawPlan = await generatePlanProgressive(input, sendEvent);
       const enrichedRaw = enrichPlan(rawPlan);
-      const { plan: tripState, warnings, fixesApplied } = validateItinerary(enrichedRaw);
+      const { plan: validated, warnings, fixesApplied } = validateItinerary(enrichedRaw);
       if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
-      sendEvent({ type: 'done', data: tripState, warnings });
+
+      // Normalize into canonical shape
+      const tripState = normalizeTripState(validated);
+
+      // Atomic save — persist to GitHub before sending done event
+      let saveResult = null;
+      let saveError = null;
+      try {
+        saveResult = await savePlanToGitHub(tripState);
+        console.log('[plan] auto-saved:', saveResult.id);
+      } catch (err) {
+        saveError = err.message;
+        console.error('[plan] auto-save failed:', err.message);
+      }
+
+      sendEvent({
+        type: 'done',
+        data: tripState,
+        warnings,
+        ...(saveResult && { saved: saveResult }),
+        ...(saveError && { saveError }),
+      });
     } catch (err) {
       sendEvent({ type: 'error', message: formatErrorMessage(err) });
     } finally {
@@ -89,8 +111,9 @@ export default async function handler(req, res) {
     const rawPlanSync = await generatePlan(input);
     const affiliateEnriched = enrichWithAffiliateLinks(rawPlanSync, input.travelers || 2);
     const placesEnriched = enrichPlan(affiliateEnriched);
-    const { plan: tripState, warnings, fixesApplied } = validateItinerary(placesEnriched);
+    const { plan: validated, warnings, fixesApplied } = validateItinerary(placesEnriched);
     if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
+    const tripState = normalizeTripState(validated);
     return res.status(200).json({ ...tripState, _warnings: warnings });
   } catch (err) {
     return handleError(err, res);

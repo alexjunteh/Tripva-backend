@@ -10,6 +10,8 @@ import patchHandler from './patch.js';
 import healthHandler from './health.js';
 import ticketHandler from './ticket.js';
 import packingHandler from './packing.js';
+import saveHandler from './save.js';
+import tripHandler from './trip.js';
 import userHandler from './user.js';
 
 const app = express();
@@ -20,6 +22,8 @@ app.all('/api/patch', patchHandler);
 app.all('/api/health', healthHandler);
 app.all('/api/ticket', ticketHandler);
 app.all('/api/packing', packingHandler);
+app.all('/api/save', saveHandler);
+app.all('/api/trip', tripHandler);
 
 // User / auth / trips endpoints (all routed through user.js)
 app.all('/api/user/magic-link', userHandler);
