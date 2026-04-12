@@ -73,7 +73,24 @@ export default async function handler(req, res) {
       const enrichedRaw = enrichPlan(rawPlan);
       const { plan: tripState, warnings, fixesApplied } = validateItinerary(enrichedRaw);
       if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
-      sendEvent({ type: 'done', data: tripState, warnings });
+      // Save plan and include saved info in done event
+      let savedInfo = null;
+      try {
+        const token = process.env.GITHUB_TOKEN;
+        if (token) {
+          const { randomUUID } = await import('crypto');
+          const id = randomUUID().replace(/-/g, '').slice(0, 16);
+          const path = `plans/${id}.json`;
+          const content = Buffer.from(JSON.stringify(tripState)).toString('base64');
+          const ghRes = await fetch(`https://api.github.com/repos/alexjunteh/tripva-frontend/contents/${path}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Tripva/1.0' },
+            body: JSON.stringify({ message: `Add trip plan ${id}`, content, branch: 'main' }),
+          });
+          if (ghRes.ok) savedInfo = { id, url: `https://tripva.app/trip.html?id=${id}` };
+        }
+      } catch(e) { console.error('save error:', e.message); }
+      sendEvent({ type: 'done', data: { plan: tripState, saved: savedInfo }, warnings });
     } catch (err) {
       sendEvent({ type: 'error', message: formatErrorMessage(err) });
     } finally {
