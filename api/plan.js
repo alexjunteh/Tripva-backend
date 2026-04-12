@@ -82,7 +82,7 @@ export default async function handler(req, res) {
           const id = randomUUID().replace(/-/g, '').slice(0, 16);
           const path = `plans/${id}.json`;
           const content = Buffer.from(JSON.stringify(tripState)).toString('base64');
-          const ghRes = await fetch(`https://api.github.com/repos/alexjunteh/tripva-frontend/contents/${path}`, {
+          const ghRes = await fetch(`https://api.github.com/repos/FuturiztaOS/trip-planner/contents/${path}`, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Tripva/1.0' },
             body: JSON.stringify({ message: `Add trip plan ${id}`, content, branch: 'main' }),

@@ -2,13 +2,13 @@
  * POST /api/save
  * Saves a trip plan as a JSON file in the tripva-frontend GitHub repo.
  * Uses repo scope (existing token) — no gist scope needed.
- * Plans stored at: alexjunteh/tripva-frontend/plans/<uuid>.json
- * Readable via: https://raw.githubusercontent.com/alexjunteh/tripva-frontend/main/plans/<uuid>.json
+ * Plans stored at: FuturiztaOS/trip-planner/plans/<uuid>.json
+ * Readable via: https://raw.githubusercontent.com/FuturiztaOS/trip-planner/main/plans/<uuid>.json
  */
 import { applyCors } from '../lib/middleware.js';
 import { randomUUID } from 'crypto';
 
-const REPO      = 'alexjunteh/tripva-frontend';
+const REPO      = 'FuturiztaOS/trip-planner';
 const BRANCH    = 'main';
 const SHARE_BASE = 'https://tripva.app/trip.html';
 
