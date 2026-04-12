@@ -1,11 +1,11 @@
 /**
  * GET /api/trip?id=<plan_id>
  * Loads a trip plan by ID from GitHub raw content.
- * Plans stored at FuturiztaOS/trip-planner/plans/<id>.json
+ * Plans stored at alexjunteh/tripva-frontend/plans/<id>.json
  */
 import { applyCors } from '../lib/middleware.js';
 
-const RAW_BASE = 'https://raw.githubusercontent.com/FuturiztaOS/trip-planner/main/plans';
+const RAW_BASE = 'https://raw.githubusercontent.com/alexjunteh/tripva-frontend/main/plans';
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
