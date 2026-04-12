@@ -19,9 +19,6 @@
     "api/stats.js": {
       "maxDuration": 15
     },
-    "api/plan-fast.js": {
-      "maxDuration": 120
-    },
     "api/user.js": {
       "maxDuration": 15
     }
