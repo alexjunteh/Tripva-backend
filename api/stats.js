@@ -3,7 +3,7 @@ import { createHmac } from 'crypto';
 import { getClickStats } from '../lib/analytics.js';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_USER = 'FuturiztaOS';
+const GITHUB_USER = 'alexjunteh';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

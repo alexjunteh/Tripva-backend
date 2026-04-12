@@ -1,6 +1,6 @@
 /**
  * POST /api/save
- * Saves a trip plan as a JSON file in the trip-planner GitHub repo.
+ * Saves a trip plan as a JSON file in the tripva-frontend GitHub repo.
  * Uses repo scope (existing token) — no gist scope needed.
  * Plans stored at: alexjunteh/tripva-frontend/plans/<uuid>.json
  * Readable via: https://raw.githubusercontent.com/alexjunteh/tripva-frontend/main/plans/<uuid>.json
