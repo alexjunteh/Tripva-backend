@@ -1,6 +1,6 @@
 /**
  * POST /api/save
- * Saves a trip plan as a JSON file in the tripva-frontend GitHub repo.
+ * Saves a trip plan as a JSON file in the FuturiztaOS/trip-planner GitHub repo.
  * Uses repo scope (existing token) — no gist scope needed.
  * Plans stored at: FuturiztaOS/trip-planner/plans/<uuid>.json
  * Readable via: https://raw.githubusercontent.com/FuturiztaOS/trip-planner/main/plans/<uuid>.json
