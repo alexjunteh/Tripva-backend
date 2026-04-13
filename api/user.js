@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     if (!email) return res.status(400).json({ error: 'email required' });
     const { error } = await anonClient().auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: redirectTo || `${process.env.ALLOWED_ORIGIN || 'https://tripva.app'}/mytrips.html` }
+      options: { shouldCreateUser: true }  // OTP code only — avoids email scanner burning the link
     });
     if (error) return res.status(400).json({ error: error.message });
     return res.status(200).json({ ok: true });
