@@ -68,8 +68,18 @@ export default async function handler(req, res) {
 
     sendEvent({ type: 'start', message: 'Planning your trip...' });
 
+    // 90s total timeout — ensures done event is always sent
+    let doneSent = false;
+    const safeSend = (obj) => { sendEvent(obj); if (obj.type === 'done') doneSent = true; };
+    const totalTimeout = setTimeout(() => {
+      if (!doneSent) {
+        console.warn('[plan] Progressive generation timed out after 90s');
+        sendEvent({ type: 'done', data: { plan: null, saved: null } });
+      }
+    }, 90000);
+
     try {
-      const rawPlan = await generatePlanProgressive(input, sendEvent);
+      const rawPlan = await generatePlanProgressive(input, safeSend);
       const enrichedRaw = enrichPlan(rawPlan);
       const { plan: tripState, warnings, fixesApplied } = validateItinerary(enrichedRaw);
       if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
@@ -90,11 +100,14 @@ export default async function handler(req, res) {
           if (ghRes.ok) savedInfo = { id, url: `https://tripva.app/trip.html?id=${id}` };
         }
       } catch(e) { console.error('save error:', e.message); }
-      sendEvent({ type: 'done', data: { plan: tripState, saved: savedInfo }, warnings });
+      clearTimeout(totalTimeout);
+      sendEvent({ type: 'done', data: { plan: tripState, saved: savedInfo } });
     } catch (err) {
+      clearTimeout(totalTimeout);
       sendEvent({ type: 'error', message: formatErrorMessage(err) });
     } finally {
       clearInterval(keepAlive);
+      clearTimeout(totalTimeout);
       res.end();
     }
 
