@@ -38,6 +38,24 @@ export default async function handler(req, res) {
     if (error) return res.status(400).json({ error: error.message });
     return res.status(200).json({ ok: true });
   }
+  // POST /api/user/oauth — Google or Apple OAuth
+  if (req.method === 'POST' && url.includes('oauth')) {
+    const { provider } = req.body || {};
+    if (!provider || !['google', 'apple'].includes(provider)) {
+      return res.status(400).json({ error: 'provider must be google or apple' });
+    }
+    const origin = req.headers.origin || 'https://tripva.app';
+    const { data, error } = await anonClient().auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: origin + '/mytrips.html',
+        skipBrowserRedirect: true,
+      }
+    });
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ url: data.url });
+  }
+
 
   // POST /api/user/verify
   if (req.method === 'POST' && url.includes('verify')) {
