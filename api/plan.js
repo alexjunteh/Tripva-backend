@@ -91,13 +91,12 @@ export default async function handler(req, res) {
           const { randomUUID } = await import('crypto');
           const id = randomUUID().replace(/-/g, '').slice(0, 16);
           const path = `plans/${id}.json`;
-          const content = Buffer.from(JSON.stringify(tripState)).toString('base64');
-          const ghRes = await fetch(`https://api.github.com/repos/FuturiztaOS/trip-planner/contents/${path}`, {
-            method: 'PUT',
+          const ghRes = await fetch('https://api.github.com/gists', {
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Tripva/1.0' },
-            body: JSON.stringify({ message: `Add trip plan ${id}`, content, branch: 'main' }),
+            body: JSON.stringify({ description: `Tripva trip — ${tripState?.trip?.name||'Untitled'}`, public: false, files: { 'plan.json': { content: JSON.stringify(tripState) } } }),
           });
-          if (ghRes.ok) savedInfo = { id, url: `https://tripva.app/trip.html?id=${id}` };
+          if (ghRes.ok) { const gist = await ghRes.json(); savedInfo = { id: gist.id, url: `https://tripva.app/trip?id=${gist.id}` }; }
         }
       } catch(e) { console.error('save error:', e.message); }
       clearTimeout(totalTimeout);
