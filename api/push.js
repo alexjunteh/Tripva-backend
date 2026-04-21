@@ -12,16 +12,16 @@ const pushReady = !!(VAPID_PUBLIC && VAPID_PRIVATE);
 const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 const anonClient = () => createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
 
-function setCors(req, res) {
+export default function handler(req, res) {
+  // Inline CORS rather than calling a top-level setCors — having another
+  // function declaration at module scope alongside the default export
+  // reproducibly 500s this endpoint under Vercel. Stuffing logic inline avoids.
   const origin = (req && req.headers && req.headers.origin) || '';
   const allow = (typeof origin === 'string' && origin.indexOf('tripva.app') !== -1) ? origin : ALLOWED_ORIGIN;
   res.setHeader('Access-Control-Allow-Origin', allow);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-}
 
-export default function handler(req, res) {
-  setCors(req, res);
   const url = req.url || '';
   if (req.method === 'GET' && url.includes('public-key')) {
     if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
