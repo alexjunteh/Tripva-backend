@@ -13,7 +13,9 @@ const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { pe
 const anonClient = () => createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
 
 export default function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://tripva.app');
+  const origin = (req.headers && req.headers.origin) || '';
+  const allow = origin.indexOf('tripva.app') !== -1 ? origin : ALLOWED_ORIGIN;
+  res.setHeader('Access-Control-Allow-Origin', allow);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   const url = req.url || '';
