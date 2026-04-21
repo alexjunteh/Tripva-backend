@@ -6,8 +6,17 @@ create table if not exists public.profiles (
   email text,
   plan text default 'free',
   trips_generated integer default 0,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  plan_updated_at timestamptz,
   created_at timestamptz default now()
 );
+
+-- If profiles already exists from a prior migration, add the billing columns
+-- (idempotent — ADD COLUMN IF NOT EXISTS is safe to re-run).
+alter table public.profiles add column if not exists stripe_customer_id text;
+alter table public.profiles add column if not exists stripe_subscription_id text;
+alter table public.profiles add column if not exists plan_updated_at timestamptz;
 
 create table if not exists public.trips (
   id uuid default gen_random_uuid() primary key,

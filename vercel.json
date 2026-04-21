@@ -27,6 +27,9 @@
     },
     "api/admin.js": {
       "maxDuration": 30
+    },
+    "api/stripe.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -41,6 +44,18 @@
     {
       "source": "/api/admin/analytics",
       "destination": "/api/admin"
+    },
+    {
+      "source": "/api/stripe/checkout",
+      "destination": "/api/stripe"
+    },
+    {
+      "source": "/api/stripe/portal",
+      "destination": "/api/stripe"
+    },
+    {
+      "source": "/api/stripe/webhook",
+      "destination": "/api/stripe"
     },
     {
       "source": "/api/user/verify",
