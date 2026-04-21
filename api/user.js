@@ -40,19 +40,37 @@ export default async function handler(req, res) {
   }
   // POST /api/user/oauth — Google or Apple OAuth
   if (req.method === 'POST' && url.includes('oauth')) {
-    const { provider } = req.body || {};
+    const { provider, returnTo } = req.body || {};
     if (!provider || !['google', 'apple'].includes(provider)) {
       return res.status(400).json({ error: 'provider must be google or apple' });
     }
     const origin = req.headers.origin || 'https://tripva.app';
+    // Let the client tell us where to land post-auth (trip.html?id=... vs mytrips)
+    const redirect = returnTo && returnTo.startsWith(origin)
+      ? returnTo
+      : origin + '/mytrips.html';
     const { data, error } = await anonClient().auth.signInWithOAuth({
       provider,
-      options: {
-        redirectTo: origin + '/mytrips.html',
-        skipBrowserRedirect: true,
-      }
+      options: { redirectTo: redirect, skipBrowserRedirect: true }
     });
     if (error) return res.status(400).json({ error: error.message });
+    // signInWithOAuth just builds the URL — it doesn't verify the provider is
+    // enabled. Probe the authorize endpoint so we can return a CLEAN error if
+    // the Supabase project hasn't enabled this provider yet. Avoids sending the
+    // user to a raw Supabase 400 page.
+    try {
+      const probe = await fetch(data.url, { method: 'GET', redirect: 'manual' });
+      if (probe.status === 400) {
+        const body = await probe.text();
+        if (body.includes('not enabled') || body.includes('validation_failed')) {
+          return res.status(503).json({
+            error: 'provider_not_enabled',
+            message: `${provider} sign-in isn't enabled yet — please use magic link.`,
+            provider
+          });
+        }
+      }
+    } catch (_) { /* non-fatal — fall through and return the URL */ }
     return res.status(200).json({ url: data.url });
   }
 
