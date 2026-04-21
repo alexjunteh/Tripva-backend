@@ -18,13 +18,22 @@
 // frontend falls back to "notifications not ready yet" — same graceful pattern
 // as Stripe + OAuth.
 
-import { createRequire } from 'node:module';
 import { createClient } from '@supabase/supabase-js';
-// web-push is CJS and doesn't interop cleanly via ESM import in Vercel's
-// Node runtime — use createRequire to load it like Node's module system
-// would natively.
-const require = createRequire(import.meta.url);
-const webpush = require('web-push');
+
+// Lazy-load web-push only when actually sending pushes — at module top-level
+// under Vercel's Node runtime the CJS default-import pattern crashes. Keep
+// the module-load surface tiny so GET /api/push/public-key returns its 503
+// or the VAPID key without ever touching web-push.
+let _webpush = null;
+async function getWebPush() {
+  if (_webpush) return _webpush;
+  const mod = await import('web-push');
+  _webpush = mod.default || mod;
+  if (pushReady && _webpush.setVapidDetails) {
+    _webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+  }
+  return _webpush;
+}
 
 export const config = { runtime: 'nodejs' };
 
@@ -37,9 +46,8 @@ const CRON_TOKEN    = process.env.PUSH_CRON_TOKEN || '';
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://tripva.app';
 
 const pushReady = !!(VAPID_PUBLIC && VAPID_PRIVATE);
-if (pushReady) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
-}
+// VAPID details are set inside getWebPush() the first time a send is
+// attempted — keeps the cold-start surface tiny.
 
 const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 const anonClient = (token) => createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
@@ -139,12 +147,13 @@ async function sendDailyBriefings() {
   const userIds = [...new Set(notifications.map(n => n.userId))];
   const { data: subs } = await sb.from('push_subscriptions').select('*').in('user_id', userIds);
 
+  const wp = await getWebPush();
   let sent = 0, failed = 0;
   for (const note of notifications) {
     const userSubs = (subs || []).filter(s => s.user_id === note.userId);
     for (const sub of userSubs) {
       try {
-        await webpush.sendNotification(
+        await wp.sendNotification(
           { endpoint: sub.endpoint, keys: sub.keys },
           JSON.stringify(note.payload)
         );
