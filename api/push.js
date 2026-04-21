@@ -18,9 +18,12 @@
 // frontend falls back to "notifications not ready yet" — same graceful pattern
 // as Stripe + OAuth.
 
-import * as webpushNs from 'web-push';
-// web-push is CJS — normalize whichever shape Vercel's ESM loader gives us
-const webpush = webpushNs.default || webpushNs;
+import { createRequire } from 'module';
+// web-push is CJS and doesn't interop cleanly via ESM import in Vercel's
+// Node runtime — use createRequire to load it like Node's module system
+// would natively.
+const require = createRequire(import.meta.url);
+const webpush = require('web-push');
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
