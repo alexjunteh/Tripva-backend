@@ -1,4 +1,4 @@
-// api/push.js — step 5: full routes WITHOUT web-push or send-daily logic
+// api/push.js — step 6: stub + setCors + public-key only. No async deps.
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL   = process.env.SUPABASE_URL;
@@ -16,66 +16,15 @@ function setCors(req, res) {
   const origin = req.headers.origin || '';
   res.setHeader('Access-Control-Allow-Origin', origin.includes('tripva.app') ? origin : ALLOWED_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-cron-token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
 export default function handler(req, res) {
   setCors(req, res);
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
   const url = req.url || '';
-  try {
-    if (req.method === 'GET' && url.includes('public-key')) {
-      if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
-      return res.status(200).json({ publicKey: VAPID_PUBLIC });
-    }
-    // Async operations delegated to handleAsync below
-    return handleAsync(req, res, url).catch(err => {
-      console.error('[push] async error:', err?.message || err);
-      res.status(500).json({ error: err?.message || 'Unknown error' });
-    });
-  } catch (err) {
-    console.error('[push] handler error:', err?.message || err);
-    return res.status(500).json({ error: err?.message || 'Unknown error' });
+  if (req.method === 'GET' && url.includes('public-key')) {
+    if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
+    return res.status(200).json({ publicKey: VAPID_PUBLIC });
   }
-}
-
-async function handleAsync(req, res, url) {
-  try {
-
-    if (req.method === 'POST' && url.includes('subscribe') && !url.includes('unsubscribe')) {
-      if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
-      const token = (req.headers.authorization || '').replace(/^Bearer /, '');
-      if (!token) return res.status(401).json({ error: 'Not authenticated' });
-      const { data: { user } } = await anonClient().auth.getUser(token);
-      if (!user) return res.status(401).json({ error: 'Invalid token' });
-      const { subscription } = req.body || {};
-      if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'Missing subscription' });
-      const { error } = await serviceClient().from('push_subscriptions').upsert({
-        user_id: user.id,
-        endpoint: subscription.endpoint,
-        keys: subscription.keys,
-        user_agent: req.headers['user-agent'] || '',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'endpoint' });
-      if (error) return res.status(400).json({ error: error.message });
-      return res.status(200).json({ ok: true });
-    }
-
-    if (req.method === 'POST' && url.includes('unsubscribe')) {
-      const { endpoint } = req.body || {};
-      if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
-      await serviceClient().from('push_subscriptions').delete().eq('endpoint', endpoint);
-      return res.status(200).json({ ok: true });
-    }
-
-    if ((req.method === 'POST' || req.method === 'GET') && url.includes('send-daily')) {
-      return res.status(503).json({ error: 'push_not_configured', note: 'send-daily temporarily disabled' });
-    }
-  } catch (err) {
-    console.error('[push] handler error:', err?.message || err);
-    return res.status(500).json({ error: err?.message || 'Unknown error' });
-  }
-
-  return res.status(404).json({ error: 'Not found', url });
+  return res.status(200).json({ step: 'stub-with-setcors', method: req.method, url });
 }
