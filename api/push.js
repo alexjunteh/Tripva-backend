@@ -18,13 +18,15 @@
 // frontend falls back to "notifications not ready yet" — same graceful pattern
 // as Stripe + OAuth.
 
-import { createRequire } from 'module';
+import { createRequire } from 'node:module';
+import { createClient } from '@supabase/supabase-js';
 // web-push is CJS and doesn't interop cleanly via ESM import in Vercel's
 // Node runtime — use createRequire to load it like Node's module system
 // would natively.
 const require = createRequire(import.meta.url);
 const webpush = require('web-push');
-import { createClient } from '@supabase/supabase-js';
+
+export const config = { runtime: 'nodejs' };
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
@@ -40,7 +42,7 @@ if (pushReady) {
 }
 
 const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-const anonClient = (token) => createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storage: undefined } });
+const anonClient = (token) => createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
 
 function setCors(req, res) {
   const origin = req.headers.origin || '';
