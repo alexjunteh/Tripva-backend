@@ -77,29 +77,61 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && url.endsWith('/trips')) {
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
     const { data, error } = await anonClient(token).from('trips')
-      .select('id, title, destination, start_date, end_date, share_url, created_at')
-      .order('created_at', { ascending: false });
+      .select('id, title, destination, start_date, end_date, gist_id, created_at, updated_at')
+      .order('updated_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
-    return res.status(200).json(data);
+    // Surface a canonical share_url derived from gist_id so the frontend has a
+    // single 'open this trip' link to click regardless of deploy URL.
+    const enriched = (data || []).map(t => ({
+      ...t,
+      share_url: t.gist_id ? `https://tripva.app/trip?id=${t.gist_id}` : null
+    }));
+    return res.status(200).json(enriched);
   }
 
   // POST /api/user/trips/save
   if (req.method === 'POST' && url.includes('trips/save')) {
-    const { plan, shareUrl } = req.body || {};
+    const { plan, shareUrl, gistId } = req.body || {};
     if (!plan) return res.status(400).json({ error: 'Missing plan' });
     if (!token) return res.status(200).json({ saved: false, shareUrl });
     const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
     if (authErr || !user) return res.status(200).json({ saved: false, shareUrl });
-    const { data, error } = await anonClient(token).from('trips').insert({
+
+    // Schema has `gist_id`, not `share_url`. Extract the gist id from shareUrl
+    // if the client didn't pass it explicitly.
+    let resolvedGistId = gistId || null;
+    if (!resolvedGistId && shareUrl) {
+      const m = String(shareUrl).match(/[?&]id=([A-Za-z0-9_-]+)/);
+      if (m) resolvedGistId = m[1];
+    }
+
+    // Upsert on (user_id, gist_id) so re-saving the same trip updates in place
+    // instead of creating duplicates.
+    const row = {
       user_id: user.id,
       title: plan.trip?.name || plan.destination || 'My Trip',
       destination: plan.destination || plan.trip?.destination || '',
       start_date: plan.trip?.startDate || plan.days?.[0]?.date || '',
       end_date: plan.trip?.endDate || plan.days?.[plan.days.length - 1]?.date || '',
       plan_data: plan,
-      share_url: shareUrl || null,
+      gist_id: resolvedGistId,
       updated_at: new Date().toISOString()
-    }).select('id').single();
+    };
+    let data, error;
+    if (resolvedGistId) {
+      // Try update first; fall back to insert if no row matched
+      const upd = await anonClient(token).from('trips')
+        .update(row).eq('user_id', user.id).eq('gist_id', resolvedGistId)
+        .select('id').maybeSingle();
+      if (upd.data) { data = upd.data; error = upd.error; }
+      else {
+        const ins = await anonClient(token).from('trips').insert(row).select('id').single();
+        data = ins.data; error = ins.error;
+      }
+    } else {
+      const ins = await anonClient(token).from('trips').insert(row).select('id').single();
+      data = ins.data; error = ins.error;
+    }
     if (error) return res.status(400).json({ error: error.message });
     await serviceClient().rpc('increment_trips', { user_id_input: user.id }).catch(() => {});
     return res.status(200).json({ id: data.id, saved: true, shareUrl });
