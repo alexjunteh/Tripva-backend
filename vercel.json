@@ -21,6 +21,9 @@
     },
     "api/user.js": {
       "maxDuration": 15
+    },
+    "api/packing.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
