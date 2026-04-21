@@ -18,6 +18,25 @@ alter table public.profiles add column if not exists stripe_customer_id text;
 alter table public.profiles add column if not exists stripe_subscription_id text;
 alter table public.profiles add column if not exists plan_updated_at timestamptz;
 
+-- Web Push subscriptions (one user may have many — phone + desktop browser)
+create table if not exists public.push_subscriptions (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  endpoint text unique not null,
+  keys jsonb not null,
+  user_agent text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.push_subscriptions enable row level security;
+create policy "users can insert own push" on public.push_subscriptions
+  for insert with check (auth.uid() = user_id);
+create policy "users can view own push" on public.push_subscriptions
+  for select using (auth.uid() = user_id);
+create policy "users can delete own push" on public.push_subscriptions
+  for delete using (auth.uid() = user_id);
+
 create table if not exists public.trips (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id) on delete cascade,
