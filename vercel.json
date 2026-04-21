@@ -32,6 +32,10 @@
       "destination": "/api/user"
     },
     {
+      "source": "/api/user/oauth",
+      "destination": "/api/user"
+    },
+    {
       "source": "/api/user/verify",
       "destination": "/api/user"
     },
