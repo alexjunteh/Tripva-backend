@@ -24,6 +24,9 @@
     },
     "api/packing.js": {
       "maxDuration": 60
+    },
+    "api/admin.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -34,6 +37,10 @@
     {
       "source": "/api/user/oauth",
       "destination": "/api/user"
+    },
+    {
+      "source": "/api/admin/analytics",
+      "destination": "/api/admin"
     },
     {
       "source": "/api/user/verify",
