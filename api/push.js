@@ -19,7 +19,7 @@ function setCors(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-cron-token');
 }
 
-export default async function handler(req, res) {
+export default function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -29,6 +29,19 @@ export default async function handler(req, res) {
       if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
       return res.status(200).json({ publicKey: VAPID_PUBLIC });
     }
+    // Async operations delegated to handleAsync below
+    return handleAsync(req, res, url).catch(err => {
+      console.error('[push] async error:', err?.message || err);
+      res.status(500).json({ error: err?.message || 'Unknown error' });
+    });
+  } catch (err) {
+    console.error('[push] handler error:', err?.message || err);
+    return res.status(500).json({ error: err?.message || 'Unknown error' });
+  }
+}
+
+async function handleAsync(req, res, url) {
+  try {
 
     if (req.method === 'POST' && url.includes('subscribe') && !url.includes('unsubscribe')) {
       if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
