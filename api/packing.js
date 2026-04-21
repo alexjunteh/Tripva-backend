@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 import { packingInputSchema, formatZodError } from '../lib/schema.js';
+import { buildPackingPrompt } from '../lib/packing-prompt.js';
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = 'gpt-4o-mini';
@@ -34,66 +35,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid input', details: formatZodError(parseResult.error) });
   }
   const input = parseResult.data;
-
-  // Compute nights if dates given
-  let nights = '';
-  if (input.startDate && input.endDate) {
-    try {
-      const d1 = new Date(input.startDate);
-      const d2 = new Date(input.endDate);
-      const n = Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
-      nights = ` ${n} days`;
-    } catch(e) {}
-  }
-
-  const archetype = input.archetype || 'generic';
-  const travelers = input.travelers || 1;
-  const childAges = Array.isArray(input.child_ages) && input.child_ages.length
-    ? ` — children ages ${input.child_ages.join(', ')}`
-    : '';
-
-  const archetypeHint = {
-    solo:      'Solo traveler. Minimize weight. Include basic safety (whistle, small first-aid kit).',
-    couple:    'Couple. Include romantic-dinner attire. Skip kid items.',
-    family:    `Family with ${childAges ? childAges.trim() : 'kids'}. Include kid essentials: snacks, entertainment, basic meds, spare clothes, sun protection. Stroller if relevant.`,
-    friends:   `Group of ${travelers} friends. Include shared items (speaker, cards, group first-aid kit).`,
-    adventure: 'Adventure/outdoor trip. Heavy on gear: sturdy boots, layers, waterproof, first-aid, water purification, power bank, headlamp.',
-    nomad:     'Slow-travel / nomad. Work-from-anywhere essentials: laptop, universal adapter, noise-cancelling headphones, small-apartment toiletries.',
-    generic:   'Standard trip essentials.',
-  }[archetype];
-
-  const prompt = `Generate a comprehensive, archetype-aware packing list for this trip:
-
-Destination: ${input.destination}${nights}
-Travelers: ${travelers}
-Archetype: ${archetype}${childAges}
-
-Context: ${archetypeHint}
-
-Return ONLY JSON in this schema:
-{
-  "categories": [
-    {
-      "icon": "👕",
-      "name": "Clothing",
-      "items": [
-        { "title": "3× T-shirts", "note": "Mix colors" },
-        { "title": "1× light jacket", "note": "Evenings can be cool" }
-      ]
-    }
-  ]
-}
-
-REQUIREMENTS:
-- 5-8 categories (Documents, Clothing, Toiletries, Electronics, Health & Safety, Destination-specific, etc.)
-- 4-10 items per category
-- Each item has "title" (count + item) and optional "note" (why or when)
-- Include items specific to the destination (e.g., water shoes for beach, thermal layer for cold, sim card advice)
-- Include items specific to the archetype (kid snacks for family, business casual for nomad, etc.)
-- Skip obvious universal items (phone charger is fine; don't list "phone", "wallet")
-- Note weather/climate-appropriate items explicitly
-
-Return ONLY the JSON object. No markdown fences, no prose.`;
+  const prompt = buildPackingPrompt(input);
 
   try {
     const completion = await client.chat.completions.create({
