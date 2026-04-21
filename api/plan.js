@@ -83,6 +83,9 @@ export default async function handler(req, res) {
       const enrichedRaw = enrichPlan(rawPlan);
       const { plan: tripState, warnings, fixesApplied } = validateItinerary(enrichedRaw);
       if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
+      // Persist archetype + traveler context in trip so the frontend can
+      // render correct stats without having to sniff text.
+      try { persistArchetypeOnTrip(tripState, input); } catch(e) { console.warn('[plan] persistArchetype:', e.message); }
       // Save plan and include saved info in done event
       let savedInfo = null;
       try {
@@ -120,9 +123,36 @@ export default async function handler(req, res) {
     const placesEnriched = enrichPlan(affiliateEnriched);
     const { plan: tripState, warnings, fixesApplied } = validateItinerary(placesEnriched);
     if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
+    try { persistArchetypeOnTrip(tripState, input); } catch(e) { console.warn('[plan] persistArchetype:', e.message); }
     return res.status(200).json({ ...tripState, _warnings: warnings });
   } catch (err) {
     return handleError(err, res);
+  }
+}
+
+/**
+ * Copy archetype + traveler context onto tripState.rawPlan.trip so the
+ * frontend can render Days/People/Dates stats directly instead of sniffing
+ * free-text budget notes.
+ */
+function persistArchetypeOnTrip(tripState, input) {
+  const trip = tripState?.rawPlan?.trip;
+  if (!trip) return;
+  if (input.archetype) trip.archetype = input.archetype;
+  if (input.travelers) { trip.travelers = input.travelers; trip.people = input.travelers; }
+  if (Array.isArray(input.child_ages) && input.child_ages.length) trip.child_ages = input.child_ages;
+  if (input.occasion) trip.occasion = input.occasion;
+  if (input.pace) trip.pace = input.pace;
+  if (Array.isArray(input.modifiers) && input.modifiers.length) trip.modifiers = input.modifiers;
+  // Human-readable dates string for subtitle display
+  if (trip.startDate && trip.endDate && !trip.dates) {
+    const fmt = (ymd) => {
+      const m = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return '';
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[+m[2]-1]} ${+m[3]}`;
+    };
+    trip.dates = `${fmt(trip.startDate)} → ${fmt(trip.endDate)}`;
   }
 }
 
