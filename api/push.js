@@ -6,6 +6,7 @@ const SERVICE_KEY    = process.env.SUPABASE_SERVICE_KEY;
 const ANON_KEY       = process.env.SUPABASE_ANON_KEY;
 const VAPID_PUBLIC   = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE  = process.env.VAPID_PRIVATE_KEY || '';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://tripva.app';
 const pushReady = !!(VAPID_PUBLIC && VAPID_PRIVATE);
 
 const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
