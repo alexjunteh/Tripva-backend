@@ -1,7 +1,7 @@
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 import { planInputSchema, formatZodError } from '../lib/schema.js';
 import { generatePlan, generatePlanStreamed, generatePlanProgressive } from '../lib/claude.js';
-import { enrichWithAffiliateLinks } from '../lib/affiliate.js';
+import { enrichWithAffiliateLinksAsync } from '../lib/affiliate.js';
 import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
 
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
   // ── Standard JSON response ─────────────────────────────────────────────────
   try {
     const rawPlanSync = await generatePlan(input);
-    const affiliateEnriched = enrichWithAffiliateLinks(rawPlanSync, input.travelers || 2);
+    const affiliateEnriched = await enrichWithAffiliateLinksAsync(rawPlanSync, input.travelers || 2);
     const placesEnriched = enrichPlan(affiliateEnriched);
     const { plan: tripState, warnings, fixesApplied } = validateItinerary(placesEnriched);
     if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
