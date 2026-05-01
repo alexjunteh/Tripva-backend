@@ -30,9 +30,24 @@ const anonClient = (token) => {
   return c;
 };
 
+const CORS_ALLOWLIST = [
+  'https://tripva.app',
+  'https://www.tripva.app',
+  'https://tripva-frontend.vercel.app',
+  'https://tripva-frontend.pages.dev',
+];
+
+function isAllowedStripeOrigin(origin) {
+  if (!origin) return false;
+  if (CORS_ALLOWLIST.includes(origin)) return true;
+  if (/^https:\/\/tripva-frontend-[a-z0-9]+-alexs-projects\.vercel\.app$/.test(origin)) return true;
+  if (/^https:\/\/[a-z0-9-]+\.tripva-frontend\.pages\.dev$/.test(origin)) return true;
+  return false;
+}
+
 function setCors(req, res) {
   const origin = req.headers.origin || '';
-  res.setHeader('Access-Control-Allow-Origin', origin.includes('tripva.app') ? origin : ALLOWED_ORIGIN);
+  res.setHeader('Access-Control-Allow-Origin', isAllowedStripeOrigin(origin) ? origin : ALLOWED_ORIGIN);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Stripe-Signature');

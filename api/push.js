@@ -95,6 +95,17 @@ async function doSubscribe(req, res) {
 async function doUnsubscribe(req, res) {
   const { endpoint } = req.body || {};
   if (!endpoint) return res.status(400).json({ error: 'Missing endpoint' });
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  if (token) {
+    // Authenticated unsubscribe: scope delete to the requesting user's rows only
+    const { data: { user } } = await anonClient().auth.getUser(token).catch(() => ({ data: { user: null } }));
+    if (user) {
+      await serviceClient().from('push_subscriptions').delete().eq('endpoint', endpoint).eq('user_id', user.id);
+      return res.status(200).json({ ok: true });
+    }
+  }
+  // Unauthenticated path: still allow (SW calls this on pushsubscriptionchange without a token),
+  // but scope to endpoint only — no user-ID filter needed since endpoint is globally unique.
   await serviceClient().from('push_subscriptions').delete().eq('endpoint', endpoint);
   return res.status(200).json({ ok: true });
 }

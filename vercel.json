@@ -77,6 +77,10 @@
       "destination": "/api/push"
     },
     {
+      "source": "/api/track",
+      "destination": "/api/track"
+    },
+    {
       "source": "/api/user/verify",
       "destination": "/api/user"
     },

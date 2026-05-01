@@ -3,13 +3,21 @@
  * Saves a trip plan as a GitHub Gist (secret).
  * Returns { id, url } where id is the Gist ID.
  */
-import { applyCors } from '../lib/middleware.js';
+import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 
 const SHARE_BASE = 'https://tripva.app/trip';
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const ip = getClientIp(req);
+  const rateCheck = checkRateLimit(ip);
+  res.setHeader('X-RateLimit-Limit', '10');
+  res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
+  if (!rateCheck.allowed) {
+    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute' });
+  }
 
   const { plan } = req.body || {};
   if (!plan) return res.status(400).json({ error: 'Missing plan in request body' });

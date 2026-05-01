@@ -10,9 +10,17 @@ const ADMIN_TOKEN  = process.env.ADMIN_TOKEN || '';
 
 const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
+const ADMIN_ALLOWED_ORIGINS = [
+  'https://tripva.app',
+  'https://www.tripva.app',
+  'https://tripva-frontend.vercel.app',
+  'https://tripva-frontend.pages.dev',
+];
+
 function setCors(req, res) {
   const origin = req.headers.origin || '';
-  res.setHeader('Access-Control-Allow-Origin', origin.includes('tripva.app') ? origin : 'https://tripva.app');
+  const allowed = ADMIN_ALLOWED_ORIGINS.includes(origin) || /^https:\/\/tripva-frontend-[a-z0-9]+-alexs-projects\.vercel\.app$/.test(origin);
+  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : 'https://tripva.app');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
