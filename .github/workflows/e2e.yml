@@ -1,0 +1,43 @@
+name: E2E Tests
+
+on:
+  deployment_status:
+
+jobs:
+  playwright:
+    # Only run against successful preview deploys, not production
+    if: |
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment != 'Production'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install frontend deps
+        run: |
+          cd ../tripva-frontend 2>/dev/null || true
+          npm ci 2>/dev/null || true
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          # Create this in Vercel dashboard → Project Settings → Deployment Protection
+          VERCEL_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
