@@ -81,7 +81,7 @@
     },
     {
       "source": "/api/track",
-      "destination": "/api/track"
+      "destination": "/api/stats"
     },
     {
       "source": "/api/photospot",

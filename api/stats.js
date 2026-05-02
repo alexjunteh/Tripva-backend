@@ -1,15 +1,30 @@
-// api/stats.js — returns trip count from GitHub Gists + affiliate click stats
+// api/stats.js — trip count (GET) + affiliate click tracking (POST /api/track merged here)
 import { createHmac } from 'crypto';
-import { getClickStats } from '../lib/analytics.js';
+import { getClickStats, trackClick } from '../lib/analytics.js';
+import { applyCors } from '../lib/middleware.js';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_USER = 'alexjunteh';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-  
+
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // POST /api/track (affiliate click tracking — merged from track.js)
+  if (req.method === 'POST') {
+    const { partner, destination, tripId } = req.body || {};
+    if (!partner) return res.status(400).json({ error: 'partner required' });
+    try {
+      trackClick({ partner, destination: destination || '', tripId: tripId || 'local' });
+    } catch (err) {
+      console.error('[track] error:', err?.message);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   
   try {
     // Count gists that look like trip plans (have rawPlan in description or files)
