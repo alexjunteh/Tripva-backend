@@ -79,7 +79,11 @@ export default async function handler(req, res) {
   }
 }
 
+const selectorCache = new Map();
+
 async function handleSelector(req, res, destination) {
+  const key = 'sel:' + destination.toLowerCase();
+  if (selectorCache.has(key)) return res.status(200).json(selectorCache.get(key));
   const prompt = `List exactly 8 of the most iconic, visually stunning places to visit in "${destination}".
 Choose places that are:
 - Specific (not generic like "the city" or "old town")
@@ -117,7 +121,9 @@ Example shape: {"spots":[{"name":"...","description":"...","category":"landmark"
     }
 
     const spots = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.spots) ? parsed.spots : []);
-    return res.status(200).json({ spots: spots.slice(0, 8) });
+    const result = { spots: spots.slice(0, 8) };
+    if (result.spots.length) selectorCache.set(key, result);
+    return res.status(200).json(result);
   } catch (err) {
     console.error('[/api/spots] error:', err?.message || err);
     if (err?.status === 401) return res.status(500).json({ error: 'Configuration error' });
