@@ -10,7 +10,7 @@ import patchHandler from './patch.js';
 import healthHandler from './health.js';
 import ticketHandler from './ticket.js';
 import packingHandler from './packing.js';
-import spotsHandler from './spots.js';
+import photospotHandler from './photospot.js';
 import userHandler from './user.js';
 
 const app = express();
@@ -19,7 +19,7 @@ app.use(express.json({ limit: '2mb' }));
 app.all('/api/plan', planHandler);
 app.all('/api/patch', patchHandler);
 app.all('/api/health', healthHandler);
-app.all('/api/spots', spotsHandler);
+app.all('/api/spots', (req, res, next) => { req.query.selector = '1'; return photospotHandler(req, res); });
 app.all('/api/ticket', ticketHandler);
 app.all('/api/packing', packingHandler);
 
