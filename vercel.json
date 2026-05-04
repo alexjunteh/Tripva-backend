@@ -88,6 +88,10 @@
       "destination": "/api/photospot"
     },
     {
+      "source": "/api/spots",
+      "destination": "/api/photospot?selector=1"
+    },
+    {
       "source": "/api/user/verify",
       "destination": "/api/user"
     },
