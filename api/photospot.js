@@ -86,13 +86,14 @@ Choose places that are:
 - Photogenic — travellers would want to photograph them
 - Varied in type (mix landmarks, nature, culture, food scenes, viewpoints)
 
-For each place return:
+Return a JSON object with a single key "spots" containing an array of exactly 8 objects, each with:
 - name: well-known English name
 - description: ONE vivid sentence under 85 characters that makes a traveller want to go there
 - category: one of landmark | museum | culture | nature | view | beach | market | temple | park | street | adventure | food
 - wikiSlug: exact Wikipedia article title with underscores (e.g. "Colosseum" or "Trevi_Fountain") — must be a real Wikipedia page
 
-Return ONLY a JSON array of 8 objects, no extra text.`;
+Example shape: {"spots":[{"name":"...","description":"...","category":"landmark","wikiSlug":"..."},...]}
+`;
 
   try {
     const completion = await client.chat.completions.create({
