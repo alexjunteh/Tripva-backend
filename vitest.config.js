@@ -6,7 +6,7 @@ export default defineConfig({
     globals: false,
     // Only pick up Vitest-format tests — exclude the pre-existing custom runners
     // (packing/places/ticket/itinerary-validator) that use process.exit() directly.
-    include: ['tests/api/**/*.test.js', 'tests/lib/**/*.test.js'],
+    include: ['tests/api/**/*.test.js', 'tests/lib/**/*.test.js', 'tests/unit/**/*.test.js', 'tests/integration/**/*.test.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],

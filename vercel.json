@@ -7,14 +7,8 @@
     "api/patch.js": {
       "maxDuration": 300
     },
-    "api/save.js": {
-      "maxDuration": 30
-    },
     "api/trip.js": {
       "maxDuration": 30
-    },
-    "api/health.js": {
-      "maxDuration": 10
     },
     "api/stats.js": {
       "maxDuration": 15
@@ -36,6 +30,9 @@
     },
     "api/photospot.js": {
       "maxDuration": 60
+    },
+    "api/flights.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -84,6 +81,14 @@
       "destination": "/api/stats"
     },
     {
+      "source": "/api/health",
+      "destination": "/api/stats?_health=1"
+    },
+    {
+      "source": "/api/parse-booking",
+      "destination": "/api/plan?_parsebooking=1"
+    },
+    {
       "source": "/api/photospot",
       "destination": "/api/photospot"
     },
@@ -122,6 +127,10 @@
     {
       "source": "/api/user/trips",
       "destination": "/api/user"
+    },
+    {
+      "source": "/api/save",
+      "destination": "/api/trip"
     }
   ],
   "crons": [
