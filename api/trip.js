@@ -15,6 +15,7 @@ export default async function handler(req, res) {
     const rateCheck = checkRateLimit(ip);
     res.setHeader('X-RateLimit-Limit', '10');
     res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
+    res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
     if (!rateCheck.allowed) {
       return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute' });
     }
@@ -61,6 +62,7 @@ export default async function handler(req, res) {
 
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'Missing id parameter' });
+  if (/[./\\]/.test(id) || id.length > 64) return res.status(400).json({ error: 'Invalid id format' });
 
   const token = process.env.GITHUB_TOKEN;
 
