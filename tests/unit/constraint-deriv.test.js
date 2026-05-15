@@ -48,4 +48,14 @@ describe('deriveConstraintLines', () => {
   it('returns empty string for empty array', () => {
     expect(deriveConstraintLines([])).toBe('');
   });
+
+  it('handles late-night arrival past midnight gracefully', () => {
+    const anchor = {
+      type: 'flight', from: 'KUL', to: 'NRT',
+      date: '2024-10-01', arrivalTime: '23:30',
+    };
+    const result = deriveConstraintLines([anchor]);
+    expect(result).not.toMatch(/25:/);
+    expect(result).toMatch(/LATE ARRIVAL/i);
+  });
 });

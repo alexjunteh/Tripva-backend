@@ -25,18 +25,23 @@ export default async function handler(req, res) {
   if (!to)   return res.status(400).json({ error: 'to (IATA code) is required' });
   if (!date) return res.status(400).json({ error: 'date (YYYY-MM-DD) is required' });
 
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  if (!DATE_RE.test(date)) return res.status(400).json({ error: 'date must be YYYY-MM-DD format' });
+  if (returnDate && !DATE_RE.test(returnDate)) return res.status(400).json({ error: 'returnDate must be YYYY-MM-DD format' });
+
   // Kiwi expects DD/MM/YYYY
   const toKiwiDate = (ymd) => {
     const [y, m, d] = ymd.split('-');
     return `${d}/${m}/${y}`;
   };
 
+  const adultCount = Math.max(1, Math.min(9, parseInt(travelers) || 2));
   const params = new URLSearchParams({
     fly_from: from,
     fly_to:   to,
     date_from: toKiwiDate(date),
     date_to:   toKiwiDate(date),
-    adults:    String(travelers),
+    adults:    String(adultCount),
     curr:      'USD',
     limit:     '10',
     sort:      'price',

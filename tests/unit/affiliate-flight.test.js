@@ -11,6 +11,7 @@ describe('flightLink', () => {
     expect(url).toContain('KUL');
     expect(url).toContain('NRT');
     expect(url).toContain('myaffilid');
+    expect(url).toContain('shmarker=myaffilid');
   });
 
   it('works without affiliate ID', async () => {
