@@ -30,6 +30,9 @@
     },
     "api/photospot.js": {
       "maxDuration": 60
+    },
+    "api/flights.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
