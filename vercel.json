@@ -7,9 +7,6 @@
     "api/patch.js": {
       "maxDuration": 300
     },
-    "api/save.js": {
-      "maxDuration": 30
-    },
     "api/trip.js": {
       "maxDuration": 30
     },
@@ -127,6 +124,10 @@
     {
       "source": "/api/user/trips",
       "destination": "/api/user"
+    },
+    {
+      "source": "/api/save",
+      "destination": "/api/trip"
     }
   ],
   "crons": [
