@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 import { planInputSchema, formatZodError } from '../lib/schema.js';
 import { generatePlan, generatePlanStreamed, generatePlanProgressive } from '../lib/claude.js';
@@ -6,7 +6,7 @@ import { enrichWithAffiliateLinksAsync } from '../lib/affiliate.js';
 import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
 
-const _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const PARSE_BOOKING_SYSTEM = `You are a travel booking extractor. Given raw text from a booking confirmation (flight, hotel, or train), extract structured anchors.
 
@@ -61,13 +61,15 @@ export default async function handler(req, res) {
     }
 
     try {
-      const msg = await _anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
+      const completion = await _openai.chat.completions.create({
+        model: 'gpt-4o-mini',
         max_tokens: 1024,
-        system: PARSE_BOOKING_SYSTEM,
-        messages: [{ role: 'user', content: 'Extract booking anchors from this text:\n\n' + text.slice(0, 6000) }],
+        messages: [
+          { role: 'system', content: PARSE_BOOKING_SYSTEM },
+          { role: 'user', content: 'Extract booking anchors from this text:\n\n' + text.slice(0, 6000) },
+        ],
       });
-      const raw = (msg.content[0]?.text || '').trim();
+      const raw = (completion.choices[0]?.message?.content || '').trim();
       const match = raw.match(/\[[\s\S]*\]/);
       if (!match) return res.status(200).json({ anchors: [] });
       let anchors;
