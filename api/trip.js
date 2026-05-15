@@ -9,7 +9,7 @@ const SHARE_BASE = 'https://tripva.app/trip';
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
 
-  // ── POST /api/save — merged here ──────────────────────────────────────────
+  // ── POST — save trip plan as GitHub Gist ────────────────────────────────────
   if (req.method === 'POST') {
     const ip = getClientIp(req);
     const rateCheck = checkRateLimit(ip);
