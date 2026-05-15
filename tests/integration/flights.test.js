@@ -99,4 +99,49 @@ describe('api/flights', () => {
     const calledUrl = global.fetch.mock.calls[0][0];
     expect(calledUrl).toContain('date_from=15%2F10%2F2024');
   });
+
+  it('returns 400 for wrong date format (DD/MM/YYYY)', async () => {
+    const { default: handler } = await import('../../api/flights.js');
+    const res = makeRes();
+    await handler(makeReq({ from: 'KUL', to: 'NRT', date: '15/10/2024' }), res);
+    expect(res._status).toBe(400);
+    expect(res._body.error).toMatch(/YYYY-MM-DD/);
+  });
+
+  it('clamps travelers: 0 falls back to 2, 99 clamps to 9', async () => {
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    const { default: handler } = await import('../../api/flights.js');
+
+    // travelers=0 is falsy → parseInt(0)||2 → default 2
+    const res0 = makeRes();
+    await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01', travelers: 0 }), res0);
+    expect(global.fetch.mock.calls.at(-1)[0]).toContain('adults=2');
+
+    // travelers=99 → clamped to 9
+    const res99 = makeRes();
+    await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01', travelers: 99 }), res99);
+    expect(global.fetch.mock.calls.at(-1)[0]).toContain('adults=9');
+  });
+
+  it('uses adultCount (not raw travelers) in Trip.com link', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ currency: 'USD', data: [{ id: 'x', price: 100, booking_token: 't', route: [], duration: { total: 0 } }] }),
+    });
+    const { default: handler } = await import('../../api/flights.js');
+    const res = makeRes();
+    await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01', travelers: 99 }), res);
+    expect(res._body.flights[0].tripcomLink).toContain('adult=9');
+    expect(res._body.flights[0].tripcomLink).not.toContain('adult=99');
+  });
+
+  it('sets X-RateLimit headers on every response', async () => {
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data: [] }) });
+    const { default: handler } = await import('../../api/flights.js');
+    const res = makeRes();
+    await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01' }), res);
+    expect(res._headers['X-RateLimit-Limit']).toBe('10');
+    expect(res._headers).toHaveProperty('X-RateLimit-Remaining');
+    expect(res._headers).toHaveProperty('X-RateLimit-Reset');
+  });
 });

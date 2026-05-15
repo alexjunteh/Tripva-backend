@@ -33,6 +33,9 @@
     },
     "api/flights.js": {
       "maxDuration": 30
+    },
+    "api/parse-booking.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -83,10 +86,6 @@
     {
       "source": "/api/health",
       "destination": "/api/stats?_health=1"
-    },
-    {
-      "source": "/api/parse-booking",
-      "destination": "/api/plan?_parsebooking=1"
     },
     {
       "source": "/api/photospot",

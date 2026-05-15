@@ -58,4 +58,20 @@ describe('deriveConstraintLines', () => {
     expect(result).not.toMatch(/25:/);
     expect(result).toMatch(/LATE ARRIVAL/i);
   });
+
+  it('emits both arrival and departure blocks for transit-day anchor', () => {
+    const anchor = {
+      type: 'train',
+      from: 'Paris',
+      to: 'Lyon',
+      date: '2024-10-03',
+      arrivalTime: '10:00',   // arrive 10:00 → block until 11:30
+      departureTime: '18:00', // depart 18:00 → must leave by 16:00
+    };
+    const result = deriveConstraintLines([anchor]);
+    expect(result).toMatch(/ARRIVAL DAY/i);
+    expect(result).toMatch(/11:30/); // 10:00 + 90 min
+    expect(result).toMatch(/DEPARTURE DAY/i);
+    expect(result).toMatch(/16:00/); // 18:00 - 120 min
+  });
 });

@@ -17,6 +17,9 @@ export default async function handler(req, res) {
 
   const ip = getClientIp(req);
   const rateCheck = checkRateLimit(ip);
+  res.setHeader('X-RateLimit-Limit', '10');
+  res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
+  res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
   if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many requests' });
 
   const { from, to, date, returnDate, travelers = 2 } = req.body || {};
@@ -78,7 +81,7 @@ export default async function handler(req, res) {
       if (kiwiAffiliateId) kiwiParams.set('affilid', kiwiAffiliateId);
       const kiwiLink = `https://www.kiwi.com/booking?${kiwiParams.toString()}`;
 
-      const tcParams = new URLSearchParams({ from, to, date, adult: String(travelers) });
+      const tcParams = new URLSearchParams({ from, to, date, adult: String(adultCount) });
       if (tripcomCode) tcParams.set('alliancecode', tripcomCode);
       const tripcomLink = `https://www.trip.com/flights/?${tcParams.toString()}`;
 
