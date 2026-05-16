@@ -1,70 +1,20 @@
 /**
  * POST /api/flights
- * Proxy to Sky Scrapper (RapidAPI) — real Skyscanner data.
+ * Proxy to SerpAPI Google Flights.
  * Body: { from: "KUL", to: "NRT", date: "YYYY-MM-DD", returnDate?: "YYYY-MM-DD", travelers?: 2 }
  * Returns: { flights: [...] }
  *
- * Requires env: RAPIDAPI_KEY (from rapidapi.com, subscribe to "Sky Scrapper" free tier)
+ * Requires env: SERPAPI_KEY (serpapi.com — 250 free searches/month)
  */
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 
-const RAPIDAPI_HOST = 'sky-scrapper.p.rapidapi.com';
-const RAPIDAPI_BASE = 'https://sky-scrapper.p.rapidapi.com/api/v1/flights';
-
-// In-memory cache: IATA → { skyId, entityId }
-// Verified live against Sky Scrapper API 2026-05-16.
-const AIRPORT_CACHE = {
-  KUL: { skyId: 'KUL', entityId: '95673456' },
-  SIN: { skyId: 'SIN', entityId: '95673375' },
-  BKK: { skyId: 'BKK', entityId: '95673349' },
-  NRT: { skyId: 'NRT', entityId: '128668889' },
-  HND: { skyId: 'HND', entityId: '128667143' },
-  ICN: { skyId: 'ICN', entityId: '95673659' },
-  PVG: { skyId: 'PVG', entityId: '128667077' },
-  PEK: { skyId: 'PEK', entityId: '128668664' },
-  HKG: { skyId: 'HKG', entityId: '128668132' },
-  CGK: { skyId: 'CGK', entityId: '95673340' },
-  MNL: { skyId: 'MNL', entityId: '95673326' },
-  DXB: { skyId: 'DXB', entityId: '95673506' },
-  LHR: { skyId: 'LHR', entityId: '95565050' },
-  CDG: { skyId: 'CDG', entityId: '95565041' },
-  JFK: { skyId: 'JFK', entityId: '95565058' },
-  LAX: { skyId: 'LAX', entityId: '95673368' },
-  SYD: { skyId: 'SYD', entityId: '128667058' },
-  MEL: { skyId: 'MEL', entityId: '95673364' },
-};
-
-async function resolveAirport(iata, apiKey) {
-  const upper = iata.toUpperCase();
-  if (AIRPORT_CACHE[upper]) return AIRPORT_CACHE[upper];
-
-  const r = await fetch(
-    `${RAPIDAPI_BASE}/searchAirport?query=${encodeURIComponent(upper)}&locale=en-US`,
-    {
-      headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': RAPIDAPI_HOST },
-      signal: AbortSignal.timeout(8000),
-    }
-  );
-  if (!r.ok) return null;
-  const d = await r.json();
-  const hit = (d?.data || []).find(a =>
-    a.navigation?.relevantFlightParams?.skyId?.toUpperCase() === upper ||
-    a.skyId?.toUpperCase() === upper
-  );
-  if (!hit) return null;
-  const result = {
-    skyId:    hit.navigation?.relevantFlightParams?.skyId || hit.skyId,
-    entityId: hit.navigation?.relevantFlightParams?.entityId || hit.entityId,
-  };
-  AIRPORT_CACHE[upper] = result;
-  return result;
-}
+const SERPAPI_BASE = 'https://serpapi.com/search.json';
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = process.env.RAPIDAPI_KEY;
+  const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) return res.status(503).json({ error: 'Flight search unavailable' });
 
   const ip = getClientIp(req);
@@ -86,65 +36,68 @@ export default async function handler(req, res) {
 
   const adultCount = Math.max(1, Math.min(9, parseInt(travelers) || 2));
 
+  const params = new URLSearchParams({
+    engine:         'google_flights',
+    departure_id:   from.toUpperCase(),
+    arrival_id:     to.toUpperCase(),
+    outbound_date:  date,
+    adults:         String(adultCount),
+    currency:       'USD',
+    hl:             'en',
+    type:           returnDate ? '1' : '2', // 1=round trip, 2=one way
+    api_key:        apiKey,
+  });
+  if (returnDate) params.set('return_date', returnDate);
+
   try {
-    const [originAirport, destAirport] = await Promise.all([
-      resolveAirport(from, apiKey),
-      resolveAirport(to, apiKey),
-    ]);
-
-    if (!originAirport) return res.status(400).json({ error: `Airport not found: ${from}` });
-    if (!destAirport)   return res.status(400).json({ error: `Airport not found: ${to}` });
-
-    const params = new URLSearchParams({
-      originSkyId:          originAirport.skyId,
-      destinationSkyId:     destAirport.skyId,
-      originEntityId:       originAirport.entityId,
-      destinationEntityId:  destAirport.entityId,
-      date,
-      adults:               String(adultCount),
-      currency:             'USD',
-      market:               'en-US',
-      countryCode:          'US',
-      sortBy:               'best',
-    });
-    if (returnDate) params.set('returnDate', returnDate);
-
-    const skyRes = await fetch(`${RAPIDAPI_BASE}/searchFlights?${params.toString()}`, {
-      headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': RAPIDAPI_HOST },
-      signal: AbortSignal.timeout(15000),
+    const r = await fetch(`${SERPAPI_BASE}?${params.toString()}`, {
+      signal: AbortSignal.timeout(20000),
     });
 
-    if (!skyRes.ok) {
-      console.error('[flights] Sky Scrapper error:', skyRes.status);
+    if (!r.ok) {
+      const err = await r.text();
+      console.error('[flights] SerpAPI error:', r.status, err);
       return res.status(502).json({ error: 'Flight search failed' });
     }
 
-    const data = await skyRes.json();
-    const itineraries = data?.data?.itineraries || [];
+    const data = await r.json();
+    const raw = [
+      ...(Array.isArray(data.best_flights)  ? data.best_flights  : []),
+      ...(Array.isArray(data.other_flights) ? data.other_flights : []),
+    ].slice(0, 10);
+
     const tripcomCode = process.env.TRIPCOM_ALLIANCE_CODE || '';
 
-    const flights = itineraries.slice(0, 10).map((it) => {
-      const leg = it.legs?.[0];
-      const segments = leg?.segments || [];
-      const airlines = [...new Set(segments.map(s => s.marketingCarrier?.name).filter(Boolean))];
-      const price = it.price?.raw ?? it.price?.formatted ?? null;
+    const flights = raw.map((it, idx) => {
+      const segs     = Array.isArray(it.flights) ? it.flights : [];
+      const first    = segs[0] || {};
+      const last     = segs[segs.length - 1] || first;
+      const airlines = [...new Set(segs.map(s => s.airline).filter(Boolean))];
+
+      // Google Flights deep link
+      const gfDate = date.replace(/-/g, '');
+      const bookingLink = `https://www.google.com/flights?hl=en#flt=${from}.${to}.${gfDate}`;
 
       const tcParams = new URLSearchParams({ from, to, date, adult: String(adultCount) });
       if (tripcomCode) tcParams.set('alliancecode', tripcomCode);
 
-      // Deep link to Skyscanner for booking
-      const skyLink = `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/${date.replace(/-/g, '')}/`;
-
       return {
-        id:          it.id || leg?.id,
-        price:       typeof price === 'number' ? price : parseFloat(String(price).replace(/[^0-9.]/g, '')) || null,
+        id:          `gf-${idx}`,
+        price:       typeof it.price === 'number' ? it.price : null,
         currency:    'USD',
         airlines,
-        departure:   leg ? { iata: leg.origin?.displayCode, time: leg.departure } : null,
-        arrival:     leg ? { iata: leg.destination?.displayCode, time: leg.arrival } : null,
-        durationSec: leg?.durationInMinutes ? leg.durationInMinutes * 60 : null,
-        stops:       leg?.stopCount ?? Math.max(0, segments.length - 1),
-        bookingLink: skyLink,
+        airlineLogos: segs.map(s => s.airline_logo).filter(Boolean),
+        departure:   first.departure_airport ? {
+          iata: first.departure_airport.id,
+          time: first.departure_airport.time,
+        } : null,
+        arrival: last.arrival_airport ? {
+          iata: last.arrival_airport.id,
+          time: last.arrival_airport.time,
+        } : null,
+        durationSec: it.total_duration ? it.total_duration * 60 : null,
+        stops:       Math.max(0, segs.length - 1),
+        bookingLink,
         tripcomLink: `https://www.trip.com/flights/?${tcParams.toString()}`,
       };
     });
