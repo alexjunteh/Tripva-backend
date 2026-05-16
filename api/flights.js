@@ -12,28 +12,26 @@ const RAPIDAPI_HOST = 'sky-scrapper.p.rapidapi.com';
 const RAPIDAPI_BASE = 'https://sky-scrapper.p.rapidapi.com/api/v1/flights';
 
 // In-memory cache: IATA → { skyId, entityId }
-// Pre-seeded with common Asian/global airports so most searches skip the lookup call.
+// Verified live against Sky Scrapper API 2026-05-16.
 const AIRPORT_CACHE = {
-  KUL: { skyId: 'KUL', entityId: '95673827' },
-  SIN: { skyId: 'SIN', entityId: '95673536' },
-  BKK: { skyId: 'BKK', entityId: '95673706' },
-  NRT: { skyId: 'NRT', entityId: '95673766' },
-  HND: { skyId: 'HND', entityId: '95673765' },
-  ICN: { skyId: 'ICN', entityId: '95673469' },
-  PVG: { skyId: 'PVG', entityId: '95673509' },
-  PEK: { skyId: 'PEK', entityId: '95673439' },
-  HKG: { skyId: 'HKG', entityId: '95673529' },
-  CGK: { skyId: 'CGK', entityId: '95673574' },
-  MNL: { skyId: 'MNL', entityId: '95673600' },
-  DXB: { skyId: 'DXB', entityId: '95673400' },
-  LHR: { skyId: 'LHR', entityId: '95565052' },
+  KUL: { skyId: 'KUL', entityId: '95673456' },
+  SIN: { skyId: 'SIN', entityId: '95673375' },
+  BKK: { skyId: 'BKK', entityId: '95673349' },
+  NRT: { skyId: 'NRT', entityId: '128668889' },
+  HND: { skyId: 'HND', entityId: '128667143' },
+  ICN: { skyId: 'ICN', entityId: '95673659' },
+  PVG: { skyId: 'PVG', entityId: '128667077' },
+  PEK: { skyId: 'PEK', entityId: '128668664' },
+  HKG: { skyId: 'HKG', entityId: '128668132' },
+  CGK: { skyId: 'CGK', entityId: '95673340' },
+  MNL: { skyId: 'MNL', entityId: '95673326' },
+  DXB: { skyId: 'DXB', entityId: '95673506' },
+  LHR: { skyId: 'LHR', entityId: '95565050' },
   CDG: { skyId: 'CDG', entityId: '95565041' },
   JFK: { skyId: 'JFK', entityId: '95565058' },
-  LAX: { skyId: 'LAX', entityId: '95565072' },
-  SYD: { skyId: 'SYD', entityId: '95673781' },
-  MEL: { skyId: 'MEL', entityId: '95673756' },
-  DEL: { skyId: 'DEL', entityId: '95673412' },
-  BOM: { skyId: 'BOM', entityId: '95673320' },
+  LAX: { skyId: 'LAX', entityId: '95673368' },
+  SYD: { skyId: 'SYD', entityId: '128667058' },
+  MEL: { skyId: 'MEL', entityId: '95673364' },
 };
 
 async function resolveAirport(iata, apiKey) {
