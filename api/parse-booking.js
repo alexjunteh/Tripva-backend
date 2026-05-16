@@ -32,8 +32,13 @@ export default async function handler(req, res) {
   if (applyCors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'Extraction unavailable' });
+
   const ip = getClientIp(req);
   const rateCheck = checkRateLimit(ip);
+  res.setHeader('X-RateLimit-Limit', '10');
+  res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
+  res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
   if (!rateCheck.allowed) return res.status(429).json({ error: 'Rate limit reached' });
 
   const { text } = req.body || {};

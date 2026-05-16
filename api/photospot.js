@@ -79,6 +79,20 @@ export default async function handler(req, res) {
   }
 }
 
+async function fetchPexelsPhoto(query) {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return null;
+  try {
+    const r = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
+      { headers: { Authorization: key } }
+    );
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.photos?.[0]?.src?.large || null;
+  } catch { return null; }
+}
+
 async function handleSelector(req, res, destination) {
   const prompt = `List exactly 8 of the most iconic, visually stunning places to visit in "${destination}".
 Choose places that are:
@@ -86,18 +100,16 @@ Choose places that are:
 - Photogenic — travellers would want to photograph them
 - Varied in type (mix landmarks, nature, culture, food scenes, viewpoints)
 
-For each place return:
+Return a JSON object with a "spots" key containing an array of exactly 8 objects. Each object has:
 - name: well-known English name
 - description: ONE vivid sentence under 85 characters that makes a traveller want to go there
 - category: one of landmark | museum | culture | nature | view | beach | market | temple | park | street | adventure | food
-- wikiSlug: exact Wikipedia article title with underscores (e.g. "Colosseum" or "Trevi_Fountain") — must be a real Wikipedia page
-
-Return ONLY a JSON array of 8 objects, no extra text.`;
+- wikiSlug: exact Wikipedia article title with underscores (e.g. "Colosseum" or "Trevi_Fountain") — must be a real Wikipedia page`;
 
   try {
     const completion = await client.chat.completions.create({
       model: MODEL,
-      max_tokens: 900,
+      max_tokens: 1200,
       temperature: 0.4,
       messages: [
         { role: 'system', content: 'You are a world-class travel expert. Respond ONLY with valid JSON.' },
@@ -115,8 +127,20 @@ Return ONLY a JSON array of 8 objects, no extra text.`;
       parsed = fenced ? JSON.parse(fenced[1]) : {};
     }
 
-    const spots = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.spots) ? parsed.spots : []);
-    return res.status(200).json({ spots: spots.slice(0, 8) });
+    // Handle any wrapping key (spots, places, locations, highlights, etc.)
+    const spots = Array.isArray(parsed)
+      ? parsed
+      : Object.values(parsed).find(v => Array.isArray(v)) || [];
+
+    // Fetch Pexels photos in parallel when API key is configured
+    const enriched = await Promise.all(
+      spots.slice(0, 8).map(async (s) => {
+        const photoUrl = await fetchPexelsPhoto(`${s.name} ${destination}`);
+        return photoUrl ? { ...s, photoUrl } : s;
+      })
+    );
+
+    return res.status(200).json({ spots: enriched });
   } catch (err) {
     console.error('[/api/spots] error:', err?.message || err);
     if (err?.status === 401) return res.status(500).json({ error: 'Configuration error' });

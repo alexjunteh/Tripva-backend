@@ -1,9 +1,12 @@
+import OpenAI from 'openai';
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 import { planInputSchema, formatZodError } from '../lib/schema.js';
 import { generatePlan, generatePlanStreamed, generatePlanProgressive } from '../lib/claude.js';
 import { enrichWithAffiliateLinksAsync } from '../lib/affiliate.js';
 import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
+
+const _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * POST /api/plan

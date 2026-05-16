@@ -1,4 +1,5 @@
 // api/stats.js — trip count (GET) + affiliate click tracking (POST /api/track merged here)
+//               + health check (GET /api/health rewritten here via vercel.json)
 import { createHmac } from 'crypto';
 import { getClickStats, trackClick } from '../lib/analytics.js';
 import { applyCors } from '../lib/middleware.js';
@@ -10,6 +11,16 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Health check — /api/health is rewritten to /api/stats?_health=1
+  if (req.query?._health === '1') {
+    return res.status(200).json({
+      status: 'ok',
+      service: 'tripai-backend',
+      version: '1.0.0',
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   // POST /api/track (affiliate click tracking — merged from track.js)
   if (req.method === 'POST') {
