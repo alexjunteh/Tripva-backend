@@ -69,8 +69,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ spots: [], _warning: 'Model returned unexpected shape' });
     }
 
-    spotCache.set(key, parsed);
-    return res.status(200).json(parsed);
+    const enriched = await Promise.all(
+      parsed.spots.map(async (s) => {
+        const photoUrl = await fetchPexelsPhoto(`${s.name} ${destination}`);
+        return photoUrl ? { ...s, photoUrl } : s;
+      })
+    );
+
+    const result = { ...parsed, spots: enriched };
+    spotCache.set(key, result);
+    return res.status(200).json(result);
   } catch (err) {
     console.error('[/api/photospot] error:', err?.message || err);
     if (err?.status === 401) return res.status(500).json({ error: 'Configuration error', message: 'Invalid OpenAI API key' });
