@@ -87,6 +87,19 @@ export default async function handler(req, res) {
   }
 }
 
+async function fetchWikiImage(wikiSlug) {
+  if (!wikiSlug) return null;
+  try {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiSlug)}&prop=pageimages&format=json&pithumbsize=800&origin=*`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Tripva/1.0 (tripva.live)' } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const pages = d?.query?.pages || {};
+    const page = Object.values(pages)[0];
+    return page?.thumbnail?.source || null;
+  } catch { return null; }
+}
+
 async function fetchPexelsPhoto(query) {
   const key = process.env.PEXELS_API_KEY;
   if (!key) return null;
@@ -102,17 +115,18 @@ async function fetchPexelsPhoto(query) {
 }
 
 async function handleSelector(req, res, destination) {
-  const prompt = `List exactly 8 of the most iconic, visually stunning places to visit in "${destination}".
-Choose places that are:
-- Specific (not generic like "the city" or "old town")
-- Photogenic — travellers would want to photograph them
-- Varied in type (mix landmarks, nature, culture, food scenes, viewpoints)
+  const prompt = `List exactly 8 iconic, photogenic places to visit in "${destination}".
 
-Return a JSON object with a "spots" key containing an array of exactly 8 objects. Each object has:
+Rules:
+- Be specific (name the actual place, not "the waterfront" or "old town")
+- Vary the types: mix landmarks, nature, culture, food scenes, viewpoints
+- Descriptions must be a single concrete fact or sensory detail — NOT generic travel copy. Bad: "explore the vibrant chaos". Good: "free-fall glass slide on the 69th floor" or "1000-year-old banyan tree shades the courtyard"
+
+Return JSON with a "spots" array of exactly 8 objects, each with:
 - name: well-known English name
-- description: ONE vivid sentence under 85 characters that makes a traveller want to go there
+- description: one specific, concrete sentence under 90 characters (no adjectives like "vibrant", "stunning", "rich tapestry")
 - category: one of landmark | museum | culture | nature | view | beach | market | temple | park | street | adventure | food
-- wikiSlug: exact Wikipedia article title with underscores (e.g. "Colosseum" or "Trevi_Fountain") — must be a real Wikipedia page`;
+- wikiSlug: exact Wikipedia article title with underscores (e.g. "Colosseum") — must be a real Wikipedia page`;
 
   try {
     const completion = await client.chat.completions.create({
@@ -140,10 +154,10 @@ Return a JSON object with a "spots" key containing an array of exactly 8 objects
       ? parsed
       : Object.values(parsed).find(v => Array.isArray(v)) || [];
 
-    // Fetch Pexels photos in parallel when API key is configured
+    // Prefer Wikipedia image (specific, no watermark), fall back to Pexels
     const enriched = await Promise.all(
       spots.slice(0, 8).map(async (s) => {
-        const photoUrl = await fetchPexelsPhoto(`${s.name} ${destination}`);
+        const photoUrl = (await fetchWikiImage(s.wikiSlug)) || (await fetchPexelsPhoto(`${s.name} ${destination}`));
         return photoUrl ? { ...s, photoUrl } : s;
       })
     );

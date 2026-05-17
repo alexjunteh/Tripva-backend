@@ -49,6 +49,10 @@ export default async function handler(req, res) {
   }
 
   const input = parseResult.data;
+  // Map single transport string → transportModes array for prompt builder
+  if (input.transport && !Array.isArray(input.transportModes)) {
+    input.transportModes = [input.transport];
+  }
   const useStream = req.query?.stream === 'true' || req.query?.stream === '1';
 
   // ── SSE streaming mode ─────────────────────────────────────────────────────

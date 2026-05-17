@@ -40,6 +40,30 @@
   },
   "rewrites": [
     {
+      "source": "/api/flights/cheap",
+      "destination": "/api/flights"
+    },
+    {
+      "source": "/api/flights/calendar",
+      "destination": "/api/flights"
+    },
+    {
+      "source": "/api/flights/monthly",
+      "destination": "/api/flights"
+    },
+    {
+      "source": "/api/flights/explore",
+      "destination": "/api/flights"
+    },
+    {
+      "source": "/api/flights/hotel-link",
+      "destination": "/api/flights"
+    },
+    {
+      "source": "/api/flights/activity-link",
+      "destination": "/api/flights"
+    },
+    {
       "source": "/api/user/magic-link",
       "destination": "/api/user"
     },
