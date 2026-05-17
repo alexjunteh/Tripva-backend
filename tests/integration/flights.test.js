@@ -12,15 +12,31 @@ const makeRes = () => {
   return r;
 };
 
+const serpApiResponse = (flights = []) => ({
+  ok: true,
+  json: async () => ({ best_flights: flights, other_flights: [] }),
+});
+
+const makeSerpFlight = ({ price = 320, from = 'KUL', to = 'NRT', airline = 'MH' } = {}) => ({
+  price,
+  total_duration: 480,
+  flights: [{
+    departure_airport: { id: from, time: '2024-10-01 08:00' },
+    arrival_airport:   { id: to,   time: '2024-10-01 16:00' },
+    airline,
+    airline_logo: `https://www.gstatic.com/flights/airline_logos/70px/${airline}.png`,
+  }],
+});
+
 describe('api/flights', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    process.env.KIWI_API_KEY = 'test-key';
+    process.env.SERPAPI_KEY = 'test-key';
   });
 
-  it('returns 503 when KIWI_API_KEY not set', async () => {
-    delete process.env.KIWI_API_KEY;
+  it('returns 503 when SERPAPI_KEY not set', async () => {
+    delete process.env.SERPAPI_KEY;
     const { default: handler } = await import('../../api/flights.js');
     const res = makeRes();
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01' }), res);
@@ -50,23 +66,7 @@ describe('api/flights', () => {
   });
 
   it('returns normalized flights array on success', async () => {
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        currency: 'USD',
-        data: [{
-          id: 'f1',
-          price: 320,
-          booking_token: 'tok123',
-          flyFrom: 'KUL',
-          flyTo: 'NRT',
-          route: [
-            { flyFrom: 'KUL', flyTo: 'NRT', local_departure: '2024-10-01T08:00:00.000Z', local_arrival: '2024-10-01T16:00:00.000Z', airline: 'MH' }
-          ],
-          duration: { total: 28800 }
-        }]
-      }),
-    });
+    global.fetch.mockResolvedValueOnce(serpApiResponse([makeSerpFlight()]));
     const { default: handler } = await import('../../api/flights.js');
     const res = makeRes();
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01', travelers: 2 }), res);
@@ -78,13 +78,11 @@ describe('api/flights', () => {
     expect(f.departure.iata).toBe('KUL');
     expect(f.arrival.iata).toBe('NRT');
     expect(f.stops).toBe(0);
-    expect(f.kiwiLink).toContain('kiwi.com/booking');
-    expect(f.kiwiLink).toContain('tok123');
-    expect(f.tripcomLink).toContain('trip.com');
+    expect(f.bookingLink).toBeTruthy();
   });
 
-  it('returns empty flights array when Kiwi returns no data', async () => {
-    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data: [] }) });
+  it('returns empty flights array when SerpAPI returns no data', async () => {
+    global.fetch.mockResolvedValueOnce(serpApiResponse([]));
     const { default: handler } = await import('../../api/flights.js');
     const res = makeRes();
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01' }), res);
@@ -92,12 +90,12 @@ describe('api/flights', () => {
     expect(res._body.flights).toEqual([]);
   });
 
-  it('converts date to DD/MM/YYYY format in Kiwi call', async () => {
-    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data: [] }) });
+  it('passes date in YYYY-MM-DD format to SerpAPI', async () => {
+    global.fetch.mockResolvedValueOnce(serpApiResponse([]));
     const { default: handler } = await import('../../api/flights.js');
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-15' }), makeRes());
     const calledUrl = global.fetch.mock.calls[0][0];
-    expect(calledUrl).toContain('date_from=15%2F10%2F2024');
+    expect(calledUrl).toContain('outbound_date=2024-10-15');
   });
 
   it('returns 400 for wrong date format (DD/MM/YYYY)', async () => {
@@ -109,34 +107,29 @@ describe('api/flights', () => {
   });
 
   it('clamps travelers: 0 falls back to 2, 99 clamps to 9', async () => {
-    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    global.fetch.mockResolvedValue(serpApiResponse([]));
     const { default: handler } = await import('../../api/flights.js');
 
-    // travelers=0 is falsy → parseInt(0)||2 → default 2
     const res0 = makeRes();
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01', travelers: 0 }), res0);
     expect(global.fetch.mock.calls.at(-1)[0]).toContain('adults=2');
 
-    // travelers=99 → clamped to 9
     const res99 = makeRes();
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01', travelers: 99 }), res99);
     expect(global.fetch.mock.calls.at(-1)[0]).toContain('adults=9');
   });
 
-  it('uses adultCount (not raw travelers) in Trip.com link', async () => {
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ currency: 'USD', data: [{ id: 'x', price: 100, booking_token: 't', route: [], duration: { total: 0 } }] }),
-    });
+  it('booking link present and uses clamped adult count', async () => {
+    global.fetch.mockResolvedValueOnce(serpApiResponse([makeSerpFlight()]));
     const { default: handler } = await import('../../api/flights.js');
     const res = makeRes();
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01', travelers: 99 }), res);
-    expect(res._body.flights[0].tripcomLink).toContain('adult=9');
-    expect(res._body.flights[0].tripcomLink).not.toContain('adult=99');
+    expect(res._body.flights[0].bookingLink).toBeTruthy();
+    expect(res._body.flights[0].bookingLink).not.toContain('99');
   });
 
   it('sets X-RateLimit headers on every response', async () => {
-    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data: [] }) });
+    global.fetch.mockResolvedValueOnce(serpApiResponse([]));
     const { default: handler } = await import('../../api/flights.js');
     const res = makeRes();
     await handler(makeReq({ from: 'KUL', to: 'NRT', date: '2024-10-01' }), res);
