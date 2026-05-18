@@ -1,8 +1,11 @@
 /**
- * GET  /api/trip?id=<gist_id>  — load a trip plan
- * POST /api/trip                — save a trip plan (was /api/save)
+ * GET   /api/trip?id=<gist_id>  — load a trip plan
+ * POST  /api/trip                — save a trip plan (was /api/save)
+ * PATCH /api/trip                — apply natural-language instruction to trip (was /api/patch)
  */
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { patchInputSchema, formatZodError } from '../lib/schema.js';
+import { patchPlan } from '../lib/claude.js';
 
 const SHARE_BASE = 'https://tripva.app/trip';
 
@@ -57,6 +60,35 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── PATCH /api/trip — apply natural-language instruction to trip ────────────
+  if (req.method === 'PATCH') {
+    const ip = getClientIp(req);
+    const rateCheck = checkRateLimit(ip);
+    res.setHeader('X-RateLimit-Limit', '10');
+    res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
+    res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
+    if (!rateCheck.allowed) {
+      return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute', resetAt: rateCheck.resetAt });
+    }
+
+    const parseResult = patchInputSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: 'Invalid input', details: formatZodError(parseResult.error) });
+    }
+
+    const { state, instruction } = parseResult.data;
+    try {
+      const patchedState = await patchPlan(state, instruction);
+      return res.status(200).json(patchedState);
+    } catch (err) {
+      if (err?.status === 401) return res.status(500).json({ error: 'Configuration error', message: 'Invalid Anthropic API key' });
+      if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit', message: 'Anthropic API rate limit reached — please try again shortly' });
+      if (err?.message?.startsWith('Failed after')) return res.status(422).json({ error: 'Patch failed', message: err.message });
+      console.error('[/api/trip PATCH]', err);
+      return res.status(500).json({ error: 'Internal server error', message: err?.message });
+    }
+  }
+
   // ── GET /api/trip?id=<gist_id> ────────────────────────────────────────────
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -85,7 +117,8 @@ export default async function handler(req, res) {
     const fileContent = gist.files?.['plan.json']?.content;
     if (!fileContent) return res.status(404).json({ error: 'Trip data not found in gist' });
 
-    const plan = JSON.parse(fileContent);
+    let plan;
+    try { plan = JSON.parse(fileContent); } catch { return res.status(502).json({ error: 'Trip data corrupted' }); }
     return res.status(200).json({ rawPlan: plan });
   } catch (err) {
     console.error('trip load error:', err);

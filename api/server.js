@@ -6,7 +6,7 @@
  */
 import express from 'express';
 import planHandler from './plan.js';
-import patchHandler from './patch.js';
+import tripHandler from './trip.js';
 import healthHandler from './health.js';
 import ticketHandler from './ticket.js';
 import packingHandler from './packing.js';
@@ -17,7 +17,7 @@ const app = express();
 app.use(express.json({ limit: '2mb' }));
 
 app.all('/api/plan', planHandler);
-app.all('/api/patch', patchHandler);
+app.all('/api/trip', tripHandler);
 app.all('/api/health', healthHandler);
 app.all('/api/spots', (req, res, next) => { req.query.selector = '1'; return photospotHandler(req, res); });
 app.all('/api/ticket', ticketHandler);
