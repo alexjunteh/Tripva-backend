@@ -9,7 +9,10 @@
  * GET  /api/flights/hotel-link       → Hotellook affiliate link builder
  * GET  /api/flights/activity-link    → GetYourGuide affiliate link builder
  *
- * Env: SERPAPI_KEY, TRAVELPAYOUTS_TOKEN, TRAVELPAYOUTS_MARKER
+ * GET  /api/flights/photo            → Unsplash / Pexels photo proxy (keeps keys server-side)
+ *
+ * Env: SERPAPI_KEY, TRAVELPAYOUTS_TOKEN, TRAVELPAYOUTS_MARKER,
+ *      UNSPLASH_ACCESS_KEY, PEXELS_API_KEY
  */
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
 
@@ -70,6 +73,7 @@ export default async function handler(req, res) {
   try {
     // Travelpayouts GET sub-routes
     if (req.method === 'GET') {
+      if (action === 'photo') return await proxyPhoto(req, res);
       if (!TP_TOKEN) return res.status(503).json({ error: 'Price intelligence unavailable' });
       switch (action) {
         case 'cheap':         return await tpCheap(req, res);
@@ -108,7 +112,8 @@ async function serpSearch(req, res) {
   if (returnDate && !DATE_RE.test(returnDate)) return res.status(400).json({ error: 'returnDate must be YYYY-MM-DD' });
 
   const adultCount = Math.max(1, Math.min(9, parseInt(travelers) || 2));
-  const fromU = from.toUpperCase(), toU = to.toUpperCase();
+  const fromU = parseIata(from) || from.trim().toUpperCase().slice(0, 4);
+  const toU   = parseIata(to)   || to.trim().toUpperCase().slice(0, 4);
 
   const params = new URLSearchParams({
     engine: 'google_flights', departure_id: fromU, arrival_id: toU,
@@ -266,4 +271,50 @@ function tpActivityLink(req, res) {
   const { destination } = req.query;
   if (!destination) return res.status(400).json({ error: 'destination required' });
   return res.status(200).json({ url: gygLink({ destination }) });
+}
+
+// ── Photo proxy (keeps Unsplash / Pexels keys server-side) ──────────────────
+
+async function proxyPhoto(req, res) {
+  const { query, source = 'unsplash' } = req.query;
+  if (!query) return res.status(400).json({ error: 'query is required' });
+  const q = encodeURIComponent(String(query).slice(0, 100));
+
+  try {
+    if (source === 'pexels') {
+      const key = process.env.PEXELS_API_KEY;
+      if (!key) return res.status(503).json({ error: 'Photo service unavailable' });
+      const r = await fetch(
+        `https://api.pexels.com/v1/search?query=${q}&per_page=1&orientation=landscape`,
+        { headers: { Authorization: key }, signal: AbortSignal.timeout(8000) }
+      );
+      if (!r.ok) return res.status(502).json({ error: 'Photo fetch failed' });
+      const data = await r.json();
+      const photo = data.photos?.[0];
+      if (!photo) return res.status(200).json({ url: null });
+      return res.status(200).json({
+        url: photo.src?.large || photo.src?.medium || null,
+        credit: { name: photo.photographer, link: photo.photographer_url },
+      });
+    }
+
+    // default: unsplash
+    const key = process.env.UNSPLASH_ACCESS_KEY;
+    if (!key) return res.status(503).json({ error: 'Photo service unavailable' });
+    const r = await fetch(
+      `https://api.unsplash.com/search/photos?query=${q}&per_page=1&orientation=landscape&client_id=${key}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!r.ok) return res.status(502).json({ error: 'Photo fetch failed' });
+    const data = await r.json();
+    const photo = data.results?.[0];
+    if (!photo) return res.status(200).json({ url: null });
+    return res.status(200).json({
+      url: photo.urls?.regular || photo.urls?.small || null,
+      credit: { name: photo.user?.name, link: photo.links?.html },
+    });
+  } catch (err) {
+    console.error('[flights/photo]', err.message);
+    return res.status(502).json({ error: 'Photo fetch failed' });
+  }
 }

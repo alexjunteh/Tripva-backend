@@ -4,11 +4,8 @@
     "api/plan.js": {
       "maxDuration": 300
     },
-    "api/patch.js": {
-      "maxDuration": 300
-    },
     "api/trip.js": {
-      "maxDuration": 30
+      "maxDuration": 300
     },
     "api/stats.js": {
       "maxDuration": 15
@@ -53,6 +50,10 @@
     },
     {
       "source": "/api/flights/explore",
+      "destination": "/api/flights"
+    },
+    {
+      "source": "/api/flights/photo",
       "destination": "/api/flights"
     },
     {
