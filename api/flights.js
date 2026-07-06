@@ -7,7 +7,7 @@
  * GET  /api/flights/monthly          → TP monthly cheapest
  * GET  /api/flights/explore          → TP city directions (cheapest from origin)
  * GET  /api/flights/hotel-link       → Hotellook affiliate link builder
- * GET  /api/flights/activity-link    → GetYourGuide affiliate link builder
+ * GET  /api/flights/activity-link    → Klook/GetYourGuide affiliate link builder
  *
  * GET  /api/flights/photo            → Unsplash / Pexels photo proxy (keeps keys server-side)
  *
@@ -15,6 +15,7 @@
  *      UNSPLASH_ACCESS_KEY, PEXELS_API_KEY
  */
 import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { activityLinkForDestination } from '../lib/affiliate.js';
 
 const SERPAPI_BASE = 'https://serpapi.com/search.json';
 const TP_API       = 'https://api.travelpayouts.com';
@@ -74,14 +75,14 @@ export default async function handler(req, res) {
     // Travelpayouts GET sub-routes
     if (req.method === 'GET') {
       if (action === 'photo') return await proxyPhoto(req, res);
+      if (action === 'hotel-link') return tpHotelLink(req, res);
+      if (action === 'activity-link') return tpActivityLink(req, res);
       if (!TP_TOKEN) return res.status(503).json({ error: 'Price intelligence unavailable' });
       switch (action) {
         case 'cheap':         return await tpCheap(req, res);
         case 'calendar':      return await tpCalendar(req, res);
         case 'monthly':       return await tpMonthly(req, res);
         case 'explore':       return await tpExplore(req, res);
-        case 'hotel-link':    return tpHotelLink(req, res);
-        case 'activity-link': return tpActivityLink(req, res);
         default:              return res.status(404).json({ error: 'Unknown route' });
       }
     }
@@ -268,9 +269,15 @@ function tpHotelLink(req, res) {
 }
 
 function tpActivityLink(req, res) {
-  const { destination } = req.query;
+  const { destination, activityName = '', date = '', redirect = '' } = req.query;
   if (!destination) return res.status(400).json({ error: 'destination required' });
-  return res.status(200).json({ url: gygLink({ destination }) });
+  const url = activityLinkForDestination({ destination, activityName, date });
+  if (redirect === '1' || redirect === 'true') {
+    res.statusCode = 302;
+    res.setHeader('Location', url);
+    return res.end();
+  }
+  return res.status(200).json({ url });
 }
 
 // ── Photo proxy (keeps Unsplash / Pexels keys server-side) ──────────────────

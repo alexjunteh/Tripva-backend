@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 global.fetch = vi.fn();
 
 const makeReq = (body) => ({ method: 'POST', body, query: {}, headers: { origin: 'https://tripva.app' } });
+const makeGetReq = (url, query = {}) => ({ method: 'GET', url, query, headers: { origin: 'https://tripva.app' } });
 const makeRes = () => {
   const r = { _status: 200, _body: null, _headers: {} };
   r.status = (s) => { r._status = s; return r; };
@@ -136,5 +137,19 @@ describe('api/flights', () => {
     expect(res._headers['X-RateLimit-Limit']).toBe('10');
     expect(res._headers).toHaveProperty('X-RateLimit-Remaining');
     expect(res._headers).toHaveProperty('X-RateLimit-Reset');
+  });
+
+  it('returns activity affiliate links without requiring Travelpayouts price token', async () => {
+    delete process.env.TRAVELPAYOUTS_TOKEN;
+    process.env.KLOOK_AID = 'klook123';
+    const { default: handler } = await import('../../api/flights.js');
+    const res = makeRes();
+    await handler(makeGetReq('/api/flights/activity-link', {
+      destination: 'Phuket, Thailand',
+      activityName: 'Phi Phi Island tour',
+    }), res);
+    expect(res._status).toBe(200);
+    expect(res._body.url).toContain('klook.com');
+    expect(res._body.url).toContain('aid=klook123');
   });
 });
