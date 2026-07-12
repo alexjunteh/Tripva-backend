@@ -1,8 +1,8 @@
-# TripAI Backend
+# Tripva Backend
 
 AI-powered trip planner API built with Node.js, Express (local dev), and Vercel serverless functions.
 
-Uses `claude-sonnet-4-5` to generate structured `trip-state.json` (normalizedVersion: 2) with full itineraries, hotels, budgets, train tickets, and map data.
+Generates structured `trip-state.json` (normalizedVersion: 2) with full itineraries, hotels, budgets, train tickets, and map data.
 
 ---
 
@@ -18,7 +18,7 @@ npm install
 
 ```bash
 cp .env.example .env
-# Edit .env and set your ANTHROPIC_API_KEY
+# Edit .env and set the keys required for the endpoints you want to run
 ```
 
 ### 3. Run locally
@@ -46,7 +46,10 @@ vercel --prod
 ### Set environment variables in Vercel
 
 ```bash
+vercel env add OPENAI_API_KEY
 vercel env add ANTHROPIC_API_KEY
+vercel env add GITHUB_TOKEN
+vercel env add SERPAPI_KEY
 vercel env add ALLOWED_ORIGIN
 ```
 
@@ -163,9 +166,35 @@ Note: In Vercel's serverless environment, the in-memory rate limiter resets per 
 
 ---
 
+### `POST /api/parse-booking`
+
+Extract flight, hotel, and train anchors from pasted booking confirmation text.
+
+**Request body:**
+```json
+{
+  "text": "Your booking confirmation..."
+}
+```
+
+**Response (200):**
+```json
+{
+  "anchors": []
+}
+```
+
+**Error responses:**
+- `400` — Missing or too-short text
+- `405` — Method not allowed
+- `429` — Rate limit exceeded
+- `503` — `ANTHROPIC_API_KEY` is not configured
+
+---
+
 ## CORS
 
-By default, only `https://futuriztaos.github.io` is allowed as an origin. Set `ALLOWED_ORIGIN` in your environment to change this. In development (`NODE_ENV !== 'production'`), all origins are permitted.
+Production CORS allows `https://tripva.app`, `https://www.tripva.app`, configured Tripva preview hosts, and localhost development origins.
 
 ---
 

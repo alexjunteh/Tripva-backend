@@ -95,7 +95,7 @@ describe('api/parse-booking', () => {
     const { default: handler } = await import('../../api/parse-booking.js');
     const res = makeRes();
     await handler(makeReq({ text: 'Booking confirmation with some flight details here.' }), res);
-    expect(res._headers['X-RateLimit-Limit']).toBe('10');
+    expect(res._headers['X-RateLimit-Limit']).toBe('3');
     expect(res._headers).toHaveProperty('X-RateLimit-Remaining');
     expect(res._headers).toHaveProperty('X-RateLimit-Reset');
   });

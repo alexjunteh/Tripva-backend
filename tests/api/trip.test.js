@@ -83,15 +83,15 @@ describe('POST /api/trip (save)', () => {
     expect(res.body.error).toMatch(/Missing plan/)
   })
 
-  it('returns 500 when GITHUB_TOKEN is not set', async () => {
+  it('returns 503 when GITHUB_TOKEN is not set', async () => {
     vi.unstubAllEnvs()
     vi.stubEnv('GITHUB_TOKEN', '')
     const res = await req
       .post('/api/trip')
       .set('x-forwarded-for', nextIp())
       .send({ plan: { trip: { name: 'Bali trip' } } })
-    expect(res.status).toBe(500)
-    expect(res.body.error).toMatch(/GITHUB_TOKEN/)
+    expect(res.status).toBe(503)
+    expect(res.body.error).toMatch(/unavailable/i)
   })
 
   it('returns 200 with id and url on GitHub success', async () => {

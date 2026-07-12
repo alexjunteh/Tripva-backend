@@ -113,10 +113,6 @@
       "destination": "/api/stats?_health=1"
     },
     {
-      "source": "/api/photospot",
-      "destination": "/api/photospot"
-    },
-    {
       "source": "/api/spots",
       "destination": "/api/photospot?selector=1"
     },

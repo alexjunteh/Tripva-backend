@@ -14,7 +14,7 @@
  * Env: SERPAPI_KEY, TRAVELPAYOUTS_TOKEN, TRAVELPAYOUTS_MARKER,
  *      UNSPLASH_ACCESS_KEY, PEXELS_API_KEY
  */
-import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { applyCors, checkRateLimit, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 import { activityLinkForDestination } from '../lib/affiliate.js';
 
 const SERPAPI_BASE = 'https://serpapi.com/search.json';
@@ -93,13 +93,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[flights]', action, err.message);
-    return res.status(500).json({ error: 'Internal server error', message: err.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
 // ── SerpAPI real-time search ─────────────────────────────────────────────────
 
 async function serpSearch(req, res) {
+  const ip = getClientIp(req);
+  const costlyCheck = checkRateLimitCostly(ip);
+  if (!costlyCheck.allowed) {
+    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 search requests per minute' });
+  }
+
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) return res.status(503).json({ error: 'Flight search unavailable' });
 

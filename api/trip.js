@@ -3,7 +3,7 @@
  * POST  /api/trip                — save a trip plan (was /api/save)
  * PATCH /api/trip                — apply natural-language instruction to trip (was /api/patch)
  */
-import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { applyCors, checkRateLimit, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 import { patchInputSchema, formatZodError } from '../lib/schema.js';
 import { patchPlan } from '../lib/claude.js';
 
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     if (!plan) return res.status(400).json({ error: 'Missing plan in request body' });
 
     const token = process.env.GITHUB_TOKEN;
-    if (!token) return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
+    if (!token) return res.status(503).json({ error: 'Save unavailable', message: 'GITHUB_TOKEN is not configured' });
 
     try {
       const ghRes = await fetch('https://api.github.com/gists', {
@@ -49,26 +49,29 @@ export default async function handler(req, res) {
       if (!ghRes.ok) {
         const errText = await ghRes.text();
         console.error('GitHub Gist error:', ghRes.status, errText);
-        return res.status(502).json({ error: 'Failed to save plan', details: errText });
+        return res.status(502).json({ error: 'Failed to save plan' });
       }
 
       const gist = await ghRes.json();
       return res.status(200).json({ id: gist.id, url: `${SHARE_BASE}?id=${gist.id}` });
     } catch (err) {
       console.error('save error:', err);
-      return res.status(500).json({ error: 'Internal server error', message: err.message });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
   // ── PATCH /api/trip — apply natural-language instruction to trip ────────────
   if (req.method === 'PATCH') {
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: 'Editing unavailable', message: 'OPENAI_API_KEY is not configured' });
+    }
     const ip = getClientIp(req);
-    const rateCheck = checkRateLimit(ip);
-    res.setHeader('X-RateLimit-Limit', '10');
+    const rateCheck = checkRateLimitCostly(ip);
+    res.setHeader('X-RateLimit-Limit', '3');
     res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
     res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
     if (!rateCheck.allowed) {
-      return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute', resetAt: rateCheck.resetAt });
+      return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 requests per minute', resetAt: rateCheck.resetAt });
     }
 
     const parseResult = patchInputSchema.safeParse(req.body);
@@ -81,11 +84,12 @@ export default async function handler(req, res) {
       const patchedState = await patchPlan(state, instruction);
       return res.status(200).json(patchedState);
     } catch (err) {
-      if (err?.status === 401) return res.status(500).json({ error: 'Configuration error', message: 'Invalid Anthropic API key' });
-      if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit', message: 'Anthropic API rate limit reached — please try again shortly' });
-      if (err?.message?.startsWith('Failed after')) return res.status(422).json({ error: 'Patch failed', message: err.message });
+      if (err?.status === 401) return res.status(500).json({ error: 'Configuration error', message: 'Invalid API key' });
+      if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit', message: 'Rate limit reached — please try again shortly' });
+      if (err?.status === 503) return res.status(503).json({ error: 'Editing unavailable' });
+      if (err?.message?.startsWith('Failed after')) return res.status(422).json({ error: 'Patch failed', message: 'Could not apply edit after multiple attempts' });
       console.error('[/api/trip PATCH]', err);
-      return res.status(500).json({ error: 'Internal server error', message: err?.message });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
@@ -122,6 +126,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ rawPlan: plan });
   } catch (err) {
     console.error('trip load error:', err);
-    return res.status(500).json({ error: 'Internal server error', message: err.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

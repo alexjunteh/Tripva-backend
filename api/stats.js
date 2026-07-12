@@ -8,9 +8,7 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_USER = 'alexjunteh';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (applyCors(req, res)) return;
 
   // Health check — /api/health is rewritten to /api/stats?_health=1
   if (req.query?._health === '1') {

@@ -114,7 +114,7 @@ export default async function handler(req, res) {
       });
     } catch (err) {
       console.error('[admin/analytics] error:', err?.message || err);
-      return res.status(500).json({ error: err?.message || 'Unknown error' });
+      return res.status(500).json({ error: 'Analytics query failed' });
     }
   }
 
