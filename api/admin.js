@@ -1,14 +1,21 @@
 // api/admin.js — admin-only analytics dashboard data.
-// Auth: x-admin-token header must equal process.env.ADMIN_TOKEN.
+// Auth: Authorization: Bearer <supabase_jwt>. The token's email must be in
+// ADMIN_EMAILS (comma-separated allowlist). No shared secret in the frontend.
 // Solo-admin pattern — Alex is the only user. Not multi-tenant.
 
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
-const ADMIN_TOKEN  = process.env.ADMIN_TOKEN || '';
+const ANON_KEY     = process.env.SUPABASE_ANON_KEY;
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
 const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+const anonClient = (token) => createClient(SUPABASE_URL, ANON_KEY, {
+  auth: { persistSession: false },
+  global: token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+});
 
 const ADMIN_ALLOWED_ORIGINS = [
   'https://tripva.app',
@@ -23,18 +30,22 @@ function setCors(req, res) {
   res.setHeader('Access-Control-Allow-Origin', allowed ? origin : 'https://tripva.app');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const token = req.headers['x-admin-token'] || req.headers['x-admin-token'.toLowerCase()];
-  if (!ADMIN_TOKEN) {
-    return res.status(503).json({ error: 'ADMIN_TOKEN env var not configured' });
+  if (!ADMIN_EMAILS.length) {
+    return res.status(503).json({ error: 'ADMIN_EMAILS env var not configured' });
   }
-  if (token !== ADMIN_TOKEN) {
+  const token = req.headers.authorization?.replace('Bearer ', '') || null;
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { data: { user } = {}, error: authErr } = await anonClient(token).auth.getUser(token);
+  if (authErr || !user || !ADMIN_EMAILS.includes((user.email || '').toLowerCase())) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -103,7 +114,7 @@ export default async function handler(req, res) {
       });
     } catch (err) {
       console.error('[admin/analytics] error:', err?.message || err);
-      return res.status(500).json({ error: err?.message || 'Unknown error' });
+      return res.status(500).json({ error: 'Analytics query failed' });
     }
   }
 

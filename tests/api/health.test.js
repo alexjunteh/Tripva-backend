@@ -15,6 +15,6 @@ describe('GET /api/health (via stats?_health=1)', () => {
 
   it('responds to OPTIONS preflight', async () => {
     const res = await req.options('/api/health').set('Origin', 'https://tripva.app')
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(204)
   })
 })

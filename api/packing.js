@@ -1,11 +1,17 @@
 import OpenAI from 'openai';
-import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { applyCors, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 import { packingInputSchema, formatZodError } from '../lib/schema.js';
 import { buildPackingPrompt } from '../lib/packing-prompt.js';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let client;
 const MODEL = 'gpt-4o-mini';
 const MAX_TOKENS = 2048;
+
+function getClient() {
+  if (!process.env.OPENAI_API_KEY) return null;
+  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return client;
+}
 
 /**
  * POST /api/packing
@@ -22,12 +28,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const openai = getClient();
+  if (!openai) {
+    return res.status(503).json({ error: 'Packing unavailable', message: 'OPENAI_API_KEY is not configured' });
+  }
+
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimit(ip);
-  res.setHeader('X-RateLimit-Limit', '10');
+  const rateCheck = checkRateLimitCostly(ip);
+  res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   if (!rateCheck.allowed) {
-    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute' });
+    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 requests per minute' });
   }
 
   const parseResult = packingInputSchema.safeParse(req.body);
@@ -38,7 +49,7 @@ export default async function handler(req, res) {
   const prompt = buildPackingPrompt(input);
 
   try {
-    const completion = await client.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       temperature: 0.5,
@@ -66,8 +77,8 @@ export default async function handler(req, res) {
     return res.status(200).json(parsed);
   } catch (err) {
     console.error('[/api/packing] error:', err?.message || err);
-    if (err?.status === 401) return res.status(500).json({ error: 'Configuration error', message: 'Invalid OpenAI API key' });
+    if (err?.status === 401) return res.status(500).json({ error: 'Configuration error' });
     if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit', message: 'Try again shortly' });
-    return res.status(500).json({ error: 'Packing generation failed', message: err?.message || 'Unknown error' });
+    return res.status(500).json({ error: 'Packing generation failed' });
   }
 }

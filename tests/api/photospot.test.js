@@ -29,6 +29,7 @@ describe('GET /api/photospot', () => {
   beforeEach(async () => {
     // Reset modules so the module-level spotCache Map starts empty each test
     vi.resetModules()
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
 
     mockCreate = vi.fn().mockResolvedValue({
       choices: [{
@@ -54,6 +55,7 @@ describe('GET /api/photospot', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it('returns 400 when destination is missing', async () => {

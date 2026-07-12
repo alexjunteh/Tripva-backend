@@ -1,7 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { applyCors, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let _client;
+function getClient() {
+  if (!_client) _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _client;
+}
 
 const PARSE_SYSTEM = `You are a travel booking extractor. Given raw text from a booking confirmation (flight, hotel, or train), extract structured anchors.
 
@@ -35,8 +39,8 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'Extraction unavailable' });
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimit(ip);
-  res.setHeader('X-RateLimit-Limit', '10');
+  const rateCheck = checkRateLimitCostly(ip);
+  res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
   if (!rateCheck.allowed) return res.status(429).json({ error: 'Rate limit reached' });
@@ -47,7 +51,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const msg = await client.messages.create({
+    const msg = await getClient().messages.create({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: 1024,
       system: PARSE_SYSTEM,
@@ -65,6 +69,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ anchors });
   } catch (err) {
     console.error('[parse-booking]', err.message);
-    return res.status(500).json({ error: 'Extraction failed', message: err.message });
+    return res.status(500).json({ error: 'Extraction failed' });
   }
 }

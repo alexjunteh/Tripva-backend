@@ -1,12 +1,9 @@
-import OpenAI from 'openai';
-import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { applyCors, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 import { planInputSchema, formatZodError } from '../lib/schema.js';
-import { generatePlan, generatePlanStreamed, generatePlanProgressive } from '../lib/claude.js';
+import { generatePlan, generatePlanProgressive } from '../lib/claude.js';
 import { enrichWithAffiliateLinksAsync } from '../lib/affiliate.js';
 import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
-
-const _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * POST /api/plan
@@ -21,18 +18,22 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(503).json({ error: 'Planning unavailable', message: 'OPENAI_API_KEY is not configured' });
+  }
+
   // ── Rate limiting ──────────────────────────────────────────────────────────
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimit(ip);
+  const rateCheck = checkRateLimitCostly(ip);
 
-  res.setHeader('X-RateLimit-Limit', '10');
+  res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
 
   if (!rateCheck.allowed) {
     return res.status(429).json({
       error: 'Too many requests',
-      message: 'Rate limit: 10 requests per minute',
+      message: 'Rate limit: 3 requests per minute',
       resetAt: rateCheck.resetAt,
     });
   }
@@ -49,6 +50,16 @@ export default async function handler(req, res) {
   }
 
   const input = parseResult.data;
+
+  const startMs = new Date(input.startDate).getTime();
+  const endMs = new Date(input.endDate).getTime();
+  if (isNaN(startMs) || isNaN(endMs) || endMs < startMs) {
+    return res.status(400).json({ error: 'Invalid dates', message: 'endDate must be on or after startDate' });
+  }
+  const tripDays = Math.round((endMs - startMs) / 86400000) + 1;
+  if (tripDays > 30) {
+    return res.status(400).json({ error: 'Trip too long', message: 'Maximum trip length is 30 days' });
+  }
   // Map single transport string → transportModes array for prompt builder
   if (input.transport && !Array.isArray(input.transportModes)) {
     input.transportModes = [input.transport];
@@ -80,15 +91,15 @@ export default async function handler(req, res) {
     const safeSend = (obj) => { sendEvent(obj); if (obj.type === 'done') doneSent = true; };
     const totalTimeout = setTimeout(() => {
       if (!doneSent) {
-        console.warn('[plan] Progressive generation timed out after 90s');
-        sendEvent({ type: 'done', data: { plan: null, saved: null } });
+        console.warn('[plan] Progressive generation timed out after 270s');
+        safeSend({ type: 'done', data: { plan: null, saved: null } });
       }
-    }, 90000);
+    }, 270000);
 
     try {
       const rawPlan = await generatePlanProgressive(input, safeSend);
-      const enrichedRaw = enrichPlan(rawPlan);
-      const { plan: tripState, warnings, fixesApplied } = validateItinerary(enrichedRaw);
+      enrichPlan(rawPlan.rawPlan);
+      const { plan: tripState, warnings, fixesApplied } = validateItinerary(rawPlan);
       if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
       // Persist archetype + traveler context in trip so the frontend can
       // render correct stats without having to sniff text.
@@ -104,13 +115,13 @@ export default async function handler(req, res) {
           const ghRes = await fetch('https://api.github.com/gists', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'Tripva/1.0' },
-            body: JSON.stringify({ description: `Tripva trip — ${tripState?.trip?.name||'Untitled'}`, public: false, files: { 'plan.json': { content: JSON.stringify(tripState) } } }),
+            body: JSON.stringify({ description: `Tripva trip — ${tripState?.rawPlan?.trip?.name||'Untitled'}`, public: false, files: { 'plan.json': { content: JSON.stringify(tripState) } } }),
           });
           if (ghRes.ok) { const gist = await ghRes.json(); savedInfo = { id: gist.id, url: `https://tripva.app/trip?id=${gist.id}` }; }
         }
       } catch(e) { console.error('save error:', e.message); }
       clearTimeout(totalTimeout);
-      sendEvent({ type: 'done', data: { plan: tripState, saved: savedInfo } });
+      safeSend({ type: 'done', data: { plan: tripState, saved: savedInfo } });
     } catch (err) {
       clearTimeout(totalTimeout);
       sendEvent({ type: 'error', message: formatErrorMessage(err) });
@@ -127,8 +138,8 @@ export default async function handler(req, res) {
   try {
     const rawPlanSync = await generatePlan(input);
     const affiliateEnriched = await enrichWithAffiliateLinksAsync(rawPlanSync, input.travelers || 2);
-    const placesEnriched = enrichPlan(affiliateEnriched);
-    const { plan: tripState, warnings, fixesApplied } = validateItinerary(placesEnriched);
+    enrichPlan(affiliateEnriched.rawPlan);
+    const { plan: tripState, warnings, fixesApplied } = validateItinerary(affiliateEnriched);
     if (fixesApplied.length) console.log('[validator] fixes:', fixesApplied.map(f => f.message));
     try { persistArchetypeOnTrip(tripState, input); } catch(e) { console.warn('[plan] persistArchetype:', e.message); }
     return res.status(200).json({ ...tripState, _warnings: warnings });
@@ -165,10 +176,10 @@ function persistArchetypeOnTrip(tripState, input) {
 
 function formatErrorMessage(err) {
   if (err?.status === 401 || err?.constructor?.name === 'AuthenticationError') {
-    return 'Invalid Anthropic API key';
+    return 'Invalid OpenAI API key';
   }
   if (err?.status === 429 || err?.constructor?.name === 'RateLimitError') {
-    return 'Anthropic API rate limit reached — please try again shortly';
+    return 'OpenAI API rate limit reached — please try again shortly';
   }
   return err?.message || 'An unexpected error occurred';
 }
@@ -177,6 +188,7 @@ function handleError(err, res) {
   const message = formatErrorMessage(err);
 
   if (err?.status === 401) return res.status(500).json({ error: 'Configuration error', message });
+  if (err?.status === 503) return res.status(503).json({ error: 'Planning unavailable', message });
   if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit', message });
   if (err?.message?.startsWith('Failed after')) {
     return res.status(422).json({ error: 'Generation failed', message });

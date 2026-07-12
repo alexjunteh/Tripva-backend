@@ -119,7 +119,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ url: session.url, sessionId: session.id });
     } catch (err) {
       console.error('[stripe/checkout] error:', err?.message);
-      return res.status(500).json({ error: err?.message || 'Checkout failed' });
+      return res.status(500).json({ error: 'Checkout failed' });
     }
   }
 
@@ -142,7 +142,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ url: portal.url });
     } catch (err) {
       console.error('[stripe/portal] error:', err?.message);
-      return res.status(500).json({ error: err?.message });
+      return res.status(500).json({ error: 'Portal session failed' });
     }
   }
 
@@ -198,7 +198,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ received: true });
     } catch (err) {
       console.error('[stripe/webhook] handler error:', err?.message);
-      return res.status(500).json({ error: err?.message });
+      return res.status(500).json({ error: 'Webhook processing failed' });
     }
   }
 

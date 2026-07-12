@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "description": "AI trip planner backend — Vercel serverless functions",
-  "main": "api/server.js",
+  "main": "dev-server.js",
   "scripts": {
-    "start": "node api/server.js",
-    "dev": "node --watch api/server.js",
+    "start": "node dev-server.js",
+    "dev": "node --watch dev-server.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

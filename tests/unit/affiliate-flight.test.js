@@ -47,3 +47,35 @@ describe('tripcomFlightLink', () => {
     expect(url).toContain('tc123');
   });
 });
+
+describe('activityLinkForDestination', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.KLOOK_AID;
+    delete process.env.GYG_PARTNER_ID;
+  });
+
+  it('uses Klook for supported Asia destinations when KLOOK_AID is configured', async () => {
+    process.env.KLOOK_AID = 'klook123';
+    const { activityLinkForDestination } = await import('../../lib/affiliate.js');
+    const url = activityLinkForDestination({
+      destination: 'Phuket, Thailand',
+      activityName: 'Phi Phi Island tour',
+    });
+    expect(url).toContain('klook.com');
+    expect(url).toContain('aid=klook123');
+    expect(url).toContain('Phi+Phi+Island+tour');
+  });
+
+  it('falls back to GetYourGuide when Klook is not configured', async () => {
+    process.env.GYG_PARTNER_ID = 'gyg123';
+    const { activityLinkForDestination } = await import('../../lib/affiliate.js');
+    const url = activityLinkForDestination({
+      destination: 'Paris, France',
+      activityName: 'Louvre Museum',
+    });
+    expect(url).toContain('getyourguide.com');
+    expect(url).toContain('partner_id=gyg123');
+    expect(url).toContain('Louvre+Museum');
+  });
+});

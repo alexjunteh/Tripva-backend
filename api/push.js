@@ -9,6 +9,7 @@ const ANON_KEY       = process.env.SUPABASE_ANON_KEY;
 const VAPID_PUBLIC   = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE  = process.env.VAPID_PRIVATE_KEY || '';
 const CRON_TOKEN     = process.env.PUSH_CRON_TOKEN || '';
+const CRON_SECRET    = process.env.CRON_SECRET || '';
 const VAPID_SUBJECT  = process.env.VAPID_SUBJECT || 'mailto:hello@tripva.app';
 const pushReady = !!(VAPID_PUBLIC && VAPID_PRIVATE);
 
@@ -45,7 +46,7 @@ export default function handler(req, res) {
     if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
     return doSubscribe(req, res).catch(err => {
       console.error('[push/subscribe] error:', err);
-      res.status(500).json({ error: err && err.message ? err.message : 'Unknown error' });
+      res.status(500).json({ error: 'Subscription failed' });
     });
   }
 
@@ -53,21 +54,21 @@ export default function handler(req, res) {
   if (req.method === 'POST' && url.includes('unsubscribe')) {
     return doUnsubscribe(req, res).catch(err => {
       console.error('[push/unsubscribe] error:', err);
-      res.status(500).json({ error: err && err.message ? err.message : 'Unknown error' });
+      res.status(500).json({ error: 'Unsubscribe failed' });
     });
   }
 
   // POST/GET /api/push/send-daily — Vercel Cron OR x-cron-token
   if ((req.method === 'POST' || req.method === 'GET') && url.includes('send-daily')) {
     if (!pushReady) return res.status(503).json({ error: 'push_not_configured' });
-    const vercelCron = !!req.headers['x-vercel-cron'];
+    const bearerAuth = CRON_SECRET && req.headers.authorization === `Bearer ${CRON_SECRET}`;
     const tokenOK = CRON_TOKEN && req.headers['x-cron-token'] === CRON_TOKEN;
-    if (!vercelCron && !tokenOK) return res.status(401).json({ error: 'Unauthorized' });
+    if (!bearerAuth && !tokenOK) return res.status(401).json({ error: 'Unauthorized' });
     return sendDailyBriefings()
       .then(r => res.status(200).json(r))
       .catch(err => {
         console.error('[push/send-daily] error:', err);
-        res.status(500).json({ error: err && err.message ? err.message : 'Unknown error' });
+        res.status(500).json({ error: 'Daily briefing failed' });
       });
   }
 

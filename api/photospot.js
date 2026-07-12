@@ -1,9 +1,15 @@
 import OpenAI from 'openai';
-import { applyCors, checkRateLimit, getClientIp } from '../lib/middleware.js';
+import { applyCors, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let client;
 const MODEL = 'gpt-4o-mini';
 const MAX_TOKENS = 2048;
+
+function getClient() {
+  if (!process.env.OPENAI_API_KEY) return null;
+  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return client;
+}
 
 // Module-level cache keyed by destination.toLowerCase().trim()
 const spotCache = new Map();
@@ -21,11 +27,11 @@ export default async function handler(req, res) {
   }
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimit(ip);
-  res.setHeader('X-RateLimit-Limit', '10');
+  const rateCheck = checkRateLimitCostly(ip);
+  res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   if (!rateCheck.allowed) {
-    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute' });
+    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 requests per minute' });
   }
 
   const destination = req.query.destination;
@@ -39,6 +45,11 @@ export default async function handler(req, res) {
     return handleSelector(req, res, destination.trim());
   }
 
+  const openai = getClient();
+  if (!openai) {
+    return res.status(503).json({ error: 'Photo spot generation unavailable', message: 'OPENAI_API_KEY is not configured' });
+  }
+
   const key = destination.toLowerCase().trim();
 
   if (spotCache.has(key)) {
@@ -46,7 +57,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const completion = await client.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       temperature: 0.7,
@@ -81,9 +92,9 @@ export default async function handler(req, res) {
     return res.status(200).json(result);
   } catch (err) {
     console.error('[/api/photospot] error:', err?.message || err);
-    if (err?.status === 401) return res.status(500).json({ error: 'Configuration error', message: 'Invalid OpenAI API key' });
+    if (err?.status === 401) return res.status(500).json({ error: 'Configuration error' });
     if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit', message: 'Try again shortly' });
-    return res.status(500).json({ error: 'Photo spot generation failed', message: err?.message || 'Unknown error' });
+    return res.status(500).json({ error: 'Photo spot generation failed' });
   }
 }
 
@@ -115,6 +126,11 @@ async function fetchPexelsPhoto(query) {
 }
 
 async function handleSelector(req, res, destination) {
+  const openai = getClient();
+  if (!openai) {
+    return res.status(503).json({ error: 'Spot selector unavailable', message: 'OPENAI_API_KEY is not configured' });
+  }
+
   const prompt = `List exactly 8 iconic, photogenic places to visit in "${destination}".
 
 Rules:
@@ -129,7 +145,7 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
 - wikiSlug: exact Wikipedia article title with underscores (e.g. "Colosseum") — must be a real Wikipedia page`;
 
   try {
-    const completion = await client.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: MODEL,
       max_tokens: 1200,
       temperature: 0.4,
