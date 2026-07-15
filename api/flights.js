@@ -16,6 +16,7 @@
  */
 import { applyCors, checkRateLimit, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 import { activityLinkForDestination } from '../lib/affiliate.js';
+import { requireCostlyAuth, sendAuthFailure } from '../lib/auth.js';
 
 const SERPAPI_BASE = 'https://serpapi.com/search.json';
 const TP_API       = 'https://api.travelpayouts.com';
@@ -62,7 +63,7 @@ export default async function handler(req, res) {
   if (applyCors(req, res)) return;
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimit(ip);
+  const rateCheck = await checkRateLimit(ip);
   res.setHeader('X-RateLimit-Limit', '10');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
@@ -101,10 +102,13 @@ export default async function handler(req, res) {
 
 async function serpSearch(req, res) {
   const ip = getClientIp(req);
-  const costlyCheck = checkRateLimitCostly(ip);
+  const costlyCheck = await checkRateLimitCostly(ip);
   if (!costlyCheck.allowed) {
     return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 search requests per minute' });
   }
+
+  const authCheck = await requireCostlyAuth(req);
+  if (!authCheck.ok) return sendAuthFailure(res, authCheck);
 
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) return res.status(503).json({ error: 'Flight search unavailable' });

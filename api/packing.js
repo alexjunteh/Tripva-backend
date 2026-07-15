@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { applyCors, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 import { packingInputSchema, formatZodError } from '../lib/schema.js';
 import { buildPackingPrompt } from '../lib/packing-prompt.js';
+import { requireCostlyAuth, sendAuthFailure } from '../lib/auth.js';
 
 let client;
 const MODEL = 'gpt-4o-mini';
@@ -34,12 +35,15 @@ export default async function handler(req, res) {
   }
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimitCostly(ip);
+  const rateCheck = await checkRateLimitCostly(ip);
   res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   if (!rateCheck.allowed) {
     return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 requests per minute' });
   }
+
+  const authCheck = await requireCostlyAuth(req);
+  if (!authCheck.ok) return sendAuthFailure(res, authCheck);
 
   const parseResult = packingInputSchema.safeParse(req.body);
   if (!parseResult.success) {

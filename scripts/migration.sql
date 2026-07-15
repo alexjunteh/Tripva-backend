@@ -60,6 +60,18 @@ create policy "Users can insert own trips" on public.trips for insert with check
 create policy "Users can update own trips" on public.trips for update using (auth.uid() = user_id);
 create policy "Users can delete own trips" on public.trips for delete using (auth.uid() = user_id);
 
+-- Affiliate click analytics (service-key insert only, no RLS needed for reads)
+create table if not exists public.affiliate_clicks (
+  id uuid default gen_random_uuid() primary key,
+  partner text not null,
+  destination text default '',
+  trip_id text default 'local',
+  clicked_at timestamptz default now()
+);
+
+create index if not exists idx_affiliate_clicks_partner on public.affiliate_clicks(partner);
+create index if not exists idx_affiliate_clicks_clicked_at on public.affiliate_clicks(clicked_at);
+
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin

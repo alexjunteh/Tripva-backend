@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     const { partner, destination, tripId } = req.body || {};
     if (!partner) return res.status(400).json({ error: 'partner required' });
     try {
-      trackClick({ partner, destination: destination || '', tripId: tripId || 'local' });
+      await trackClick({ partner, destination: destination || '', tripId: tripId || 'local' });
     } catch (err) {
       console.error('[track] error:', err?.message);
     }
@@ -60,10 +60,10 @@ export default async function handler(req, res) {
 
     // Add a base count to make it look more impressive at launch
     const BASE_COUNT = 47;
-    const clickStats = getClickStats();
+    const clickStats = await getClickStats();
     return res.json({ trips: count + BASE_COUNT, raw: count, ...clickStats });
   } catch (err) {
-    const clickStats = getClickStats();
+    const clickStats = await getClickStats();
     return res.json({ trips: 50, raw: 0, ...clickStats }); // fallback
   }
 }

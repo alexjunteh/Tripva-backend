@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { applyCors, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
+import { requireCostlyAuth, sendAuthFailure } from '../lib/auth.js';
 
 let _client;
 function getClient() {
@@ -39,11 +40,14 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'Extraction unavailable' });
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimitCostly(ip);
+  const rateCheck = await checkRateLimitCostly(ip);
   res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
   if (!rateCheck.allowed) return res.status(429).json({ error: 'Rate limit reached' });
+
+  const authCheck = await requireCostlyAuth(req);
+  if (!authCheck.ok) return sendAuthFailure(res, authCheck);
 
   const { text } = req.body || {};
   if (!text || typeof text !== 'string' || text.trim().length < 20) {
