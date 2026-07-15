@@ -6,6 +6,7 @@
 import { applyCors, checkRateLimit, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
 import { patchInputSchema, formatZodError } from '../lib/schema.js';
 import { patchPlan } from '../lib/claude.js';
+import { requireCostlyAuth, sendAuthFailure } from '../lib/auth.js';
 
 const SHARE_BASE = 'https://tripva.app/trip';
 
@@ -73,6 +74,9 @@ export default async function handler(req, res) {
     if (!rateCheck.allowed) {
       return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 requests per minute', resetAt: rateCheck.resetAt });
     }
+
+    const authCheck = await requireCostlyAuth(req);
+    if (!authCheck.ok) return sendAuthFailure(res, authCheck);
 
     const parseResult = patchInputSchema.safeParse(req.body);
     if (!parseResult.success) {

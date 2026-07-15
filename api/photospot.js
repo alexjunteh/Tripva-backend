@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { applyCors, checkRateLimitCostly, getClientIp } from '../lib/middleware.js';
+import { requireCostlyAuth, sendAuthFailure } from '../lib/auth.js';
 
 let client;
 const MODEL = 'gpt-4o-mini';
@@ -33,6 +34,9 @@ export default async function handler(req, res) {
   if (!rateCheck.allowed) {
     return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 requests per minute' });
   }
+
+  const authCheck = await requireCostlyAuth(req);
+  if (!authCheck.ok) return sendAuthFailure(res, authCheck);
 
   const destination = req.query.destination;
   if (!destination || typeof destination !== 'string' || destination.trim() === '') {

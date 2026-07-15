@@ -4,6 +4,7 @@ import { generatePlan, generatePlanProgressive } from '../lib/claude.js';
 import { enrichWithAffiliateLinksAsync } from '../lib/affiliate.js';
 import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
+import { requireCostlyAuth, sendAuthFailure } from '../lib/auth.js';
 
 /**
  * POST /api/plan
@@ -37,6 +38,9 @@ export default async function handler(req, res) {
       resetAt: rateCheck.resetAt,
     });
   }
+
+  const authCheck = await requireCostlyAuth(req);
+  if (!authCheck.ok) return sendAuthFailure(res, authCheck);
 
   // ── Input validation ───────────────────────────────────────────────────────
   const body = req.body;
