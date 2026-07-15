@@ -77,25 +77,25 @@ describe('checkRateLimit', () => {
   let seed = 9000
   const nextIp = () => `192.168.${seed++}.1`
 
-  it('allows the first 10 requests', () => {
+  it('allows the first 10 requests', async () => {
     const ip = nextIp()
     for (let i = 1; i <= 10; i++) {
-      const result = checkRateLimit(ip)
+      const result = await checkRateLimit(ip)
       expect(result.allowed).toBe(true)
       expect(result.remaining).toBe(10 - i)
     }
   })
 
-  it('blocks the 11th request', () => {
+  it('blocks the 11th request', async () => {
     const ip = nextIp()
-    for (let i = 0; i < 10; i++) checkRateLimit(ip)
-    const result = checkRateLimit(ip)
+    for (let i = 0; i < 10; i++) await checkRateLimit(ip)
+    const result = await checkRateLimit(ip)
     expect(result.allowed).toBe(false)
     expect(result.remaining).toBe(0)
   })
 
-  it('returns a resetAt ISO timestamp', () => {
-    const result = checkRateLimit(nextIp())
+  it('returns a resetAt ISO timestamp', async () => {
+    const result = await checkRateLimit(nextIp())
     expect(result.resetAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
   })
 })

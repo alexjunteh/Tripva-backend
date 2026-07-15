@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   // ── POST — save trip plan as GitHub Gist ────────────────────────────────────
   if (req.method === 'POST') {
     const ip = getClientIp(req);
-    const rateCheck = checkRateLimit(ip);
+    const rateCheck = await checkRateLimit(ip);
     res.setHeader('X-RateLimit-Limit', '10');
     res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
     res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: 'Editing unavailable', message: 'OPENAI_API_KEY is not configured' });
     }
     const ip = getClientIp(req);
-    const rateCheck = checkRateLimitCostly(ip);
+    const rateCheck = await checkRateLimitCostly(ip);
     res.setHeader('X-RateLimit-Limit', '3');
     res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
     res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);

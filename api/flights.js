@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   if (applyCors(req, res)) return;
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimit(ip);
+  const rateCheck = await checkRateLimit(ip);
   res.setHeader('X-RateLimit-Limit', '10');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
@@ -101,7 +101,7 @@ export default async function handler(req, res) {
 
 async function serpSearch(req, res) {
   const ip = getClientIp(req);
-  const costlyCheck = checkRateLimitCostly(ip);
+  const costlyCheck = await checkRateLimitCostly(ip);
   if (!costlyCheck.allowed) {
     return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 search requests per minute' });
   }

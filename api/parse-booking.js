@@ -39,7 +39,7 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'Extraction unavailable' });
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimitCostly(ip);
+  const rateCheck = await checkRateLimitCostly(ip);
   res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);

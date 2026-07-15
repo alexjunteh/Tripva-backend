@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   }
 
   const ip = getClientIp(req);
-  const rateCheck = checkRateLimitCostly(ip);
+  const rateCheck = await checkRateLimitCostly(ip);
   res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   if (!rateCheck.allowed) {
