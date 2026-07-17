@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
     res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
     if (!rateCheck.allowed) {
-      return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute' });
+      return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute', resetAt: rateCheck.resetAt });
     }
 
     const { plan } = req.body || {};
