@@ -44,7 +44,7 @@ export default async function handler(req, res) {
   res.setHeader('X-RateLimit-Limit', '3');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
-  if (!rateCheck.allowed) return res.status(429).json({ error: 'Rate limit reached' });
+  if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 requests per minute', resetAt: rateCheck.resetAt });
 
   const authCheck = await requireCostlyAuth(req);
   if (!authCheck.ok) return sendAuthFailure(res, authCheck);

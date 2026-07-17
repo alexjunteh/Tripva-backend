@@ -22,7 +22,10 @@ export default async function handler(req, res) {
 
   // POST /api/track (affiliate click tracking — merged from track.js)
   if (req.method === 'POST') {
-    const { partner, destination, tripId } = req.body || {};
+    const body = req.body || {};
+    const partner = body.partner;
+    const destination = body.destination;
+    const tripId = body.tripId || body.trip_id;
     if (!partner) return res.status(400).json({ error: 'partner required' });
     try {
       await trackClick({ partner, destination: destination || '', tripId: tripId || 'local' });

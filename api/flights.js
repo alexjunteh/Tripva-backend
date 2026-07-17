@@ -67,7 +67,7 @@ export default async function handler(req, res) {
   res.setHeader('X-RateLimit-Limit', '10');
   res.setHeader('X-RateLimit-Remaining', String(rateCheck.remaining));
   res.setHeader('X-RateLimit-Reset', rateCheck.resetAt);
-  if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many requests' });
+  if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 10 requests per minute', resetAt: rateCheck.resetAt });
 
   const rawUrl  = req.url || '';
   const action  = rawUrl.split('?')[0].replace(/^\/api\/flights\/?/, '') || '';
@@ -104,7 +104,7 @@ async function serpSearch(req, res) {
   const ip = getClientIp(req);
   const costlyCheck = await checkRateLimitCostly(ip);
   if (!costlyCheck.allowed) {
-    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 search requests per minute' });
+    return res.status(429).json({ error: 'Too many requests', message: 'Rate limit: 3 search requests per minute', resetAt: costlyCheck.resetAt });
   }
 
   const authCheck = await requireCostlyAuth(req);
