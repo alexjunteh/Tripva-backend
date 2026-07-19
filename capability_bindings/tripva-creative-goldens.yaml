@@ -1,0 +1,39 @@
+apiVersion: futurizta.goldens/v1
+sourceRepository: ..
+fixtures:
+  - id: tripva-santorini-editorial-positive
+    domain: image
+    role: positive
+    path: capability_bindings/fixtures/santorini-editorial.webp
+    sha256: e90abb57dd4f9b7ef25984792240acbddf1111e9f777710aeebc4a1a9047f88d
+    expectation: Passes the exact Santorini editorial dimensions, aspect ratio, and format checks.
+    caveat: Technical readiness does not prove destination truth, licensing, accessibility, editorial quality, or human approval.
+    subjectId: santorini
+    style: destination-editorial
+    colorway: aegean-daylight
+    metadata:
+      minWidth: 1200
+      minHeight: 600
+      minAspect: 1.7
+      maxAspect: 2.2
+      allowedFormats: [WEBP, JPEG]
+      requiresHumanEditorialReview: true
+  - id: tripva-favicon-editorial-negative
+    domain: image
+    role: negative
+    path: capability_bindings/fixtures/favicon-negative.png
+    sha256: 796425cf018daf3f6f5030f56471dd44e1e6957da5a87711acae767afe27e861
+    expectation: Must reject because an icon is too small, square, and not an editorial image format.
+    subjectId: santorini
+    style: destination-editorial
+    colorway: aegean-daylight
+    metadata:
+      minWidth: 1200
+      minHeight: 600
+      minAspect: 1.7
+      maxAspect: 2.2
+      allowedFormats: [WEBP, JPEG]
+      expectedFailures:
+        - editorial_dimensions_below_minimum
+        - editorial_aspect_ratio_out_of_range
+        - editorial_format_required

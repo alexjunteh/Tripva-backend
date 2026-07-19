@@ -28,3 +28,7 @@ logs/
 .vercel
 .gstack/
 .env*.local
+
+# Portable capabilities: lock artifacts, regenerate extracted runtimes.
+.futurizta/.install.lock
+.futurizta/runtime/
