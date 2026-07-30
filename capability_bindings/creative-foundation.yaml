@@ -1,0 +1,24 @@
+apiVersion: futurizta.bindings/v1
+capability: creative-foundation
+enabled: false
+mode: shadow
+adapters:
+  creative-reference-policy-v1: tripva_capabilities.creative_foundation.adapters:TripvaReferencePolicy
+  creative-budget-gate-v2: tripva_capabilities.creative_foundation.adapters:TripvaZeroBudget
+  creative-image-generator-v1: tripva_capabilities.creative_foundation.adapters:TripvaFixtureGenerator
+  creative-quality-evaluator-v1: tripva_capabilities.creative_foundation.adapters:TripvaEditorialEvaluator
+  creative-asset-registry-v1: tripva_capabilities.creative_foundation.adapters:TripvaAssetRegistry
+runtimeDependencies:
+  - Pillow>=10,<13
+configuration:
+  goldenSet: capability_bindings/tripva-creative-goldens.yaml
+  maxAttempts: 1
+  budgetUsd: 0
+policy:
+  network: denied
+  providerSpend: denied
+  productionWrites: denied
+  externalActions: denied
+verification:
+  commands:
+    - python3 -m pytest -q tests_py/test_portable_creative_capability.py

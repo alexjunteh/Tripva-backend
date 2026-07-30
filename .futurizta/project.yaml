@@ -1,0 +1,4 @@
+apiVersion: futurizta.project/v1
+name: tripva-backend
+runtime:
+  python: '>=3.11,<3.14'

@@ -1,0 +1,19 @@
+apiVersion: futurizta.lock/v1
+capabilities:
+  creative-foundation:
+    artifact: artifacts/sha256/582fe8953793078f5cfaee2e5fbefe04014f6f60b8e1395a43b2a4fa53209ad2.whl
+    artifactSha256: 582fe8953793078f5cfaee2e5fbefe04014f6f60b8e1395a43b2a4fa53209ad2
+    binding: bindings/creative-foundation/470cd3b774b228e9c9b4999e4a511e222b793a1820549ffddd5533ed1baeaf94.yaml
+    bindingSha256: 470cd3b774b228e9c9b4999e4a511e222b793a1820549ffddd5533ed1baeaf94
+    dependencies:
+      packaging: '26.0'
+      pillow: 12.2.0
+      pydantic: 2.12.5
+      pyyaml: 6.0.1
+    enabled: false
+    mode: shadow
+    releaseCommit: d138740d641053621790d29cb4f3f30cce2b8027
+    runtime: runtime/creative-foundation/0.3.0/582fe8953793078f
+    runtimeDigest: ada3d7ba49b87963a903789161ba8617159c053d0716243f02045d5c92003521
+    sourceTree: 550c2180fdaacda58b7531c2594b6080db4f403e
+    version: 0.3.0
