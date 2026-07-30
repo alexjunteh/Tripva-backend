@@ -4,7 +4,8 @@ import { generatePlan, generatePlanProgressive } from '../lib/claude.js';
 import { enrichWithAffiliateLinksAsync } from '../lib/affiliate.js';
 import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
-import { requireCostlyAuth, sendAuthFailure } from '../lib/auth.js';
+import { requireCostlyAuth, sendAuthFailure, optionalSupabaseUser } from '../lib/auth.js';
+import { checkDailyQuota } from '../lib/quota.js';
 
 /**
  * POST /api/plan
@@ -41,6 +42,29 @@ export default async function handler(req, res) {
 
   const authCheck = await requireCostlyAuth(req);
   if (!authCheck.ok) return sendAuthFailure(res, authCheck);
+
+  // ── Daily quota ────────────────────────────────────────────────────────────
+  const user = authCheck.user || await optionalSupabaseUser(req);
+  const quotaTier = user ? 'free' : 'anonymous';
+  const quotaId = user ? `user:${user.id}` : `ip:${ip}`;
+  const quota = await checkDailyQuota(quotaId, quotaTier);
+
+  res.setHeader('X-Quota-Limit', String(quota.limit));
+  res.setHeader('X-Quota-Remaining', String(quota.remaining));
+  res.setHeader('X-Quota-Tier', quotaTier);
+
+  if (!quota.allowed) {
+    const msg = user
+      ? 'Daily trip limit reached. Upgrade your plan for more trips.'
+      : 'Daily trip limit reached. Sign in for more trips.';
+    return res.status(429).json({
+      error: 'Daily quota exceeded',
+      message: msg,
+      quotaLimit: quota.limit,
+      quotaUsed: quota.used,
+      tier: quotaTier,
+    });
+  }
 
   // ── Input validation ───────────────────────────────────────────────────────
   const body = req.body;
