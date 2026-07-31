@@ -33,6 +33,9 @@
     },
     "api/parse-booking.js": {
       "maxDuration": 30
+    },
+    "api/social.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
@@ -151,6 +154,18 @@
     {
       "source": "/api/save",
       "destination": "/api/trip"
+    },
+    {
+      "source": "/api/social/status",
+      "destination": "/api/social"
+    },
+    {
+      "source": "/api/social/posts",
+      "destination": "/api/social"
+    },
+    {
+      "source": "/api/social/publish",
+      "destination": "/api/social"
     }
   ],
   "crons": [
