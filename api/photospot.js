@@ -14,6 +14,7 @@ function getClient() {
 
 // Module-level cache keyed by destination.toLowerCase().trim()
 const spotCache = new Map();
+const selectorCache = new Map();
 
 /**
  * GET /api/photospot?destination=<city>          — photo spots for trip dashboard
@@ -134,6 +135,12 @@ async function fetchPexelsPhoto(query) {
 }
 
 async function handleSelector(req, res, destination) {
+  const cacheKey = destination.toLowerCase().trim();
+  const cached = selectorCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < 3600000) {
+    return res.status(200).json({ spots: cached.spots });
+  }
+
   const openai = getClient();
   if (!openai) {
     return res.status(503).json({ error: 'Spot selector unavailable', message: 'OPENAI_API_KEY is not configured' });
@@ -186,6 +193,7 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
       })
     );
 
+    selectorCache.set(cacheKey, { spots: enriched, ts: Date.now() });
     return res.status(200).json({ spots: enriched });
   } catch (err) {
     console.error('[/api/spots] error:', err?.message || err);
