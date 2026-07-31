@@ -120,7 +120,7 @@ export default async function handler(req, res) {
 
     sendEvent({ type: 'start', message: 'Planning your trip...' });
 
-    // 90s total timeout — ensures done event is always sent
+    // 270s total timeout — ensures done event is always sent
     let doneSent = false;
     const safeSend = (obj) => { sendEvent(obj); if (obj.type === 'done') doneSent = true; };
     const totalTimeout = setTimeout(() => {

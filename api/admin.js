@@ -67,7 +67,7 @@ export default async function handler(req, res) {
         sb.from('trips').select('id', { count: 'exact', head: true }),
         sb.from('trips').select('id', { count: 'exact', head: true }).gte('created_at', d7),
         sb.from('trips')
-          .select('id, title, destination, start_date, end_date, gist_id, created_at')
+          .select('id, title, destination, start_date, end_date, share_url, created_at')
           .order('created_at', { ascending: false })
           .limit(10),
         sb.from('trips').select('destination'),

@@ -59,8 +59,11 @@ export default async function handler(req, res) {
   // GET /api/social/cron — Vercel Cron handler, publishes due posts
   // Must be before admin auth since cron uses CRON_SECRET, not JWT.
   if (req.method === 'GET' && url.includes('/cron')) {
+    if (!CRON_SECRET) {
+      return res.status(503).json({ error: 'CRON_SECRET not configured' });
+    }
     const authHeader = req.headers.authorization;
-    if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+    if (authHeader !== `Bearer ${CRON_SECRET}`) {
       return res.status(401).json({ error: 'Invalid cron secret' });
     }
 
@@ -152,6 +155,10 @@ export default async function handler(req, res) {
 
       const results = {};
 
+      if (platforms.includes('instagram') && !imageUrl) {
+        return res.status(400).json({ error: 'imageUrl required for Instagram' });
+      }
+
       if (platforms.includes('facebook')) {
         results.facebook = await publishToFacebook({
           message: message || caption,
@@ -161,9 +168,6 @@ export default async function handler(req, res) {
       }
 
       if (platforms.includes('instagram')) {
-        if (!imageUrl) {
-          return res.status(400).json({ error: 'imageUrl required for Instagram' });
-        }
         results.instagram = await publishToInstagram({
           imageUrl,
           caption: caption || message,

@@ -22,7 +22,10 @@ const anonClient = (token) => createClient(SUPABASE_URL, ANON_KEY, {
   global: token ? { headers: { Authorization: `Bearer ${token}` } } : {}
 });
 const serviceClient = () => createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-const getToken = (req) => req.headers.authorization?.replace('Bearer ', '') || null;
+const getToken = (req) => {
+  const m = req.headers.authorization?.match(/^Bearer\s+(.+)$/i);
+  return m ? m[1] : null;
+};
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
@@ -47,10 +50,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'provider must be google or apple' });
     }
     const origin = req.headers.origin || 'https://tripva.app';
-    // Let the client tell us where to land post-auth (trip.html?id=... vs mytrips)
-    const redirect = returnTo && returnTo.startsWith(origin)
-      ? returnTo
-      : origin + '/mytrips.html';
+    let redirect = origin + '/mytrips.html';
+    if (returnTo) {
+      try {
+        const parsed = new URL(returnTo);
+        if (parsed.origin === origin) redirect = returnTo;
+      } catch (_) { /* invalid URL — use default */ }
+    }
     const { data, error } = await anonClient().auth.signInWithOAuth({
       provider,
       options: { redirectTo: redirect, skipBrowserRedirect: true }
@@ -186,8 +192,11 @@ export default async function handler(req, res) {
   const delMatch = url.match(/\/trips\/([a-f0-9-]{36})$/);
   if (req.method === 'DELETE' && delMatch) {
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
-    const { error } = await anonClient(token).from('trips').delete().eq('id', delMatch[1]);
+    const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
+    const { data, error } = await anonClient(token).from('trips').delete().eq('id', delMatch[1]).select('id');
     if (error) return res.status(400).json({ error: error.message });
+    if (!data?.length) return res.status(404).json({ error: 'Trip not found' });
     return res.status(200).json({ ok: true });
   }
 
