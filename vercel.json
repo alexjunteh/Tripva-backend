@@ -140,6 +140,10 @@
       "destination": "/api/user"
     },
     {
+      "source": "/api/user/plan",
+      "destination": "/api/user"
+    },
+    {
       "source": "/api/user/trips/save",
       "destination": "/api/user"
     },
