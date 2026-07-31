@@ -166,12 +166,24 @@
     {
       "source": "/api/social/publish",
       "destination": "/api/social"
+    },
+    {
+      "source": "/api/social/schedule",
+      "destination": "/api/social"
+    },
+    {
+      "source": "/api/social/cron",
+      "destination": "/api/social"
     }
   ],
   "crons": [
     {
       "path": "/api/push/send-daily?cron=1",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/social/cron",
+      "schedule": "*/15 * * * *"
     }
   ],
   "headers": [
