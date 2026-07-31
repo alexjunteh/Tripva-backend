@@ -119,10 +119,10 @@ async function sendDailyBriefings() {
 
   const [upcomingRes, inProgressRes] = await Promise.all([
     sb.from('trips')
-      .select('user_id, title, destination, start_date, end_date, gist_id, plan_data')
+      .select('user_id, title, destination, start_date, end_date, share_url, plan_data')
       .gte('start_date', ymd).lte('start_date', plus7),
     sb.from('trips')
-      .select('user_id, title, destination, start_date, end_date, gist_id, plan_data')
+      .select('user_id, title, destination, start_date, end_date, share_url, plan_data')
       .lte('start_date', ymd).gte('end_date', ymd)
   ]);
 
@@ -180,8 +180,8 @@ function buildPreTripPush(trip, now) {
       body: days === 1 ? 'Packed? Check your packing list + tickets.' : 'Make sure your bookings are confirmed.',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      url: trip.gist_id ? ('https://tripva.app/trip?id=' + trip.gist_id) : 'https://tripva.app/mytrips.html',
-      tag: 'pretrip-' + (trip.gist_id || trip.user_id) + '-' + days,
+      url: trip.share_url || 'https://tripva.app/mytrips.html',
+      tag: 'pretrip-' + (trip.share_url || trip.user_id) + '-' + days,
     }
   };
 }
@@ -201,8 +201,8 @@ function buildOnTripPush(trip, now, ymd) {
       body: first && first.title ? ('First up: ' + first.title + ' · ' + (first.time || '')) : 'Open your plan to see today.',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      url: trip.gist_id ? ('https://tripva.app/trip?id=' + trip.gist_id) : 'https://tripva.app/mytrips.html',
-      tag: 'ontrip-' + (trip.gist_id || trip.user_id) + '-' + ymd,
+      url: trip.share_url || 'https://tripva.app/mytrips.html',
+      tag: 'ontrip-' + (trip.share_url || trip.user_id) + '-' + ymd,
     }
   };
 }

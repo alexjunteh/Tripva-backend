@@ -1,6 +1,5 @@
 // api/stats.js — trip count (GET) + affiliate click tracking (POST /api/track merged here)
 //               + health check (GET /api/health rewritten here via vercel.json)
-import { createHmac } from 'crypto';
 import { getClickStats, trackClick } from '../lib/analytics.js';
 import { applyCors } from '../lib/middleware.js';
 
@@ -66,7 +65,7 @@ export default async function handler(req, res) {
     const clickStats = await getClickStats();
     return res.json({ trips: count + BASE_COUNT, raw: count, ...clickStats });
   } catch (err) {
-    const clickStats = await getClickStats();
+    const clickStats = await getClickStats().catch(() => ({ clicks: {}, totalClicks: 0 }));
     return res.json({ trips: 50, raw: 0, ...clickStats }); // fallback
   }
 }

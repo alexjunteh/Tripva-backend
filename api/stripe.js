@@ -82,7 +82,7 @@ export default async function handler(req, res) {
       });
     }
     const body = await readJsonBody(req);
-    const { token, successUrl, cancelUrl } = body || {};
+    const { token } = body || {};
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
     // Look up user via Supabase
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
     if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
 
     try {
-      const origin = req.headers.origin || ALLOWED_ORIGIN;
+      const origin = isAllowedStripeOrigin(req.headers.origin) ? req.headers.origin : ALLOWED_ORIGIN;
       // Re-use existing customer if the profile already has one
       const { data: profile } = await serviceClient()
         .from('profiles').select('stripe_customer_id, email').eq('id', user.id).maybeSingle();
@@ -109,10 +109,11 @@ export default async function handler(req, res) {
         mode: 'subscription',
         customer: customerId,
         line_items: [{ price: PRICE_PRO, quantity: 1 }],
-        success_url: (successUrl || (origin + '/mytrips.html?upgraded=1')) + '&session_id={CHECKOUT_SESSION_ID}',
-        cancel_url: cancelUrl || (origin + '/?checkout=cancelled'),
+        success_url: origin + '/mytrips.html?upgraded=1&session_id={CHECKOUT_SESSION_ID}',
+        cancel_url: origin + '/?checkout=cancelled',
         allow_promotion_codes: true,
         client_reference_id: user.id,
+        metadata: { supabase_user_id: user.id },
         subscription_data: { metadata: { supabase_user_id: user.id } }
       });
 
@@ -127,17 +128,18 @@ export default async function handler(req, res) {
   if (req.method === 'POST' && url.includes('portal')) {
     if (!isConfigured()) return res.status(503).json({ error: 'stripe_not_configured' });
     const body = await readJsonBody(req);
-    const { token, returnUrl } = body || {};
+    const { token } = body || {};
     if (!token) return res.status(401).json({ error: 'Not authenticated' });
-    const { data: { user } } = await anonClient(token).auth.getUser(token);
-    if (!user) return res.status(401).json({ error: 'Invalid token' });
+    const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
     const { data: profile } = await serviceClient()
       .from('profiles').select('stripe_customer_id').eq('id', user.id).maybeSingle();
     if (!profile?.stripe_customer_id) return res.status(400).json({ error: 'No billing record' });
     try {
+      const origin = isAllowedStripeOrigin(req.headers.origin) ? req.headers.origin : ALLOWED_ORIGIN;
       const portal = await stripe.billingPortal.sessions.create({
         customer: profile.stripe_customer_id,
-        return_url: returnUrl || (req.headers.origin || ALLOWED_ORIGIN) + '/mytrips.html'
+        return_url: origin + '/mytrips.html'
       });
       return res.status(200).json({ url: portal.url });
     } catch (err) {
@@ -171,12 +173,13 @@ export default async function handler(req, res) {
           const s = event.data.object;
           const userId = s.client_reference_id || s.metadata?.supabase_user_id;
           if (userId) {
-            await sb.from('profiles').update({
+            const { error: upErr } = await sb.from('profiles').update({
               plan: 'pro',
               stripe_customer_id: s.customer,
               stripe_subscription_id: s.subscription,
               plan_updated_at: new Date().toISOString()
             }).eq('id', userId);
+            if (upErr) throw new Error('checkout.session.completed update failed: ' + upErr.message);
           }
           break;
         }
@@ -186,11 +189,12 @@ export default async function handler(req, res) {
           const userId = sub.metadata?.supabase_user_id;
           const active = sub.status === 'active' || sub.status === 'trialing';
           if (userId) {
-            await sb.from('profiles').update({
+            const { error: upErr } = await sb.from('profiles').update({
               plan: active ? 'pro' : 'free',
               stripe_subscription_id: sub.id,
               plan_updated_at: new Date().toISOString()
             }).eq('id', userId);
+            if (upErr) throw new Error('subscription update failed: ' + upErr.message);
           }
           break;
         }

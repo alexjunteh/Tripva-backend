@@ -43,6 +43,9 @@ export default async function handler(req, res) {
   if (!destination || typeof destination !== 'string' || destination.trim() === '') {
     return res.status(400).json({ error: 'destination query param required' });
   }
+  if (destination.length > 200) {
+    return res.status(400).json({ error: 'destination too long (max 200 chars)' });
+  }
 
   const isSelector = req.query.selector === '1' || req.url?.includes('/api/spots');
 
