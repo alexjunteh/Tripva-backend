@@ -1,0 +1,16 @@
+### 2026-07-31T05:03:00Z — All 21/21 Videos Complete
+
+**Generation spec:** seedance_2_0, 720p, high bitrate, 9:16 portrait, 5s duration, epic genre, audio enabled, hero image as start_image reference. Unlim plan used for all.
+
+**New videos this session (720p + high bitrate + start_image ref):**
+
+| # | Destination | Video Job ID | CDN URL |
+|---|------------|-------------|---------|
+| 18 | Budapest | `770e0c41-b8b1-4753-8ce7-89321914a2a8` | https://d8j0ntlcm91z4.cloudfront.net/user_3HAlRRfQxvGMN9T0ZGB6NINdf31/hf_20260731_044228_770e0c41-b8b1-4753-8ce7-89321914a2a8.mp4 |
+| 19 | London | `ac017994-7da0-400c-83c8-517740d0c852` | https://d8j0ntlcm91z4.cloudfront.net/user_3HAlRRfQxvGMN9T0ZGB6NINdf31/hf_20260731_044923_ac017994-7da0-400c-83c8-517740d0c852.mp4 |
+| 20 | NYC | `4bced50d-dc9b-49f7-aa91-735b24149423` | https://d8j0ntlcm91z4.cloudfront.net/user_3HAlRRfQxvGMN9T0ZGB6NINdf31/hf_20260731_045610_4bced50d-dc9b-49f7-aa91-735b24149423.mp4 |
+| 21 | Peru | `c608f4bd-ccb8-4408-8865-13b55fb49bde` | https://d8j0ntlcm91z4.cloudfront.net/user_3HAlRRfQxvGMN9T0ZGB6NINdf31/hf_20260731_050259_c608f4bd-ccb8-4408-8865-13b55fb49bde.mp4 |
+
+**Quality note:** Videos 18-21 have high bitrate + hero image as start_image (better visual consistency than 1-17 which were standard bitrate, no reference). Alex will upscale all to 4K in video editing pipeline.
+
+**Remaining:** Prague image still at 1k resolution (job `e05b6877`) — needs regeneration at 4K via nano_banana_pro when ready.

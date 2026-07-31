@@ -1,0 +1,37 @@
+### Hashtag Research
+
+**2026 Algorithm Change**: Instagram capped hashtags at **5 per post** (Adam Mosseri, December 2025). Keyword-rich captions now outperform hashtag-heavy strategies.
+
+**Recommended Hashtag Sets for Tripva:**
+
+**Destination Showcase posts (pick 5):**
+- #tripva (branded)
+- #[destination]travel (e.g. #balitravel, #parisitinerary)
+- #travelitinerary
+- #travelplanner
+- #aitravelplanner
+
+**Feature Demo posts (pick 5):**
+- #tripva
+- #traveltech
+- #tripplanning
+- #aitravelplanner
+- #travelapp
+
+**Pain Point / Before-After posts (pick 5):**
+- #tripva
+- #travelhack
+- #travelplanning
+- #tripplanner
+- #travelorganization
+
+**TikTok hashtags** (different strategy — fewer, trending):
+- #traveltok (200B+ views)
+- #travelplanner
+- #aitravelplanner
+- #tripva
+- #[destination] (destination as tag)
+
+**Caption SEO > hashtags**: On IG, write keyword-rich captions that naturally include "trip planner", "itinerary", "[destination] travel" — this now drives topic classification more than hashtags.
+
+---

@@ -1,0 +1,14 @@
+### Competitor Audit
+
+| Competitor | IG Followers | Key Strategy |
+|-----------|-------------|--------------|
+| **Layla AI** (formerly Roam Around) | **410K** | Founded by Beautiful Destinations creator (26M followers). Chat-first IG bot — users DM @justasklayla to plan trips. Fuses short-form travel video with AI. €3M seed, Paris Hilton backed. |
+| **Wanderlog** | **58K** (@go.wanderlog) | Day-by-day itinerary builder. #wanderlog has 1,294 TikTok posts. Modest social presence, product-led growth. |
+| **Mindtrip** | Growing | Imports from IG, TikTok, YouTube, screenshots. Social-to-itinerary pipeline. |
+| **Roamy** | Niche | iPhone-only. Imports spots from IG/TikTok/Google Maps, routes them into days. Most focused social-import tool. |
+| **Airial Travel** | Active TikTok | "Custom itinerary in seconds" positioning. Output-first reveal format on TikTok. |
+| **Reelstrip** | Growing | Turns saved TikTok travel videos into itineraries — self-reinforcing viral loop. |
+
+**Key insight**: Layla dominates because the founder had a 26M-follower travel media empire first. For Tripva (starting from zero), the play is content virality via TikTok, not audience inheritance.
+
+---
