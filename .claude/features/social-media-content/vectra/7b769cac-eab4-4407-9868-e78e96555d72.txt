@@ -1,0 +1,29 @@
+### Algorithm Data (2026)
+
+**TikTok ranking signals** (strongest → weakest):
+1. Watch time / completion rate (~40-50% weight)
+2. Shares (especially DM shares) — 3x weight of likes
+3. Saves
+4. Replays/loops
+5. Comments
+6. Likes (weakest)
+
+**Instagram Reels ranking signals** (confirmed by Mosseri, Jan 2025):
+1. DM shares (top non-follower signal)
+2. Watch time
+3. Likes per reach
+4. Saves
+5. Comments
+
+**Negative signals**: Watermarks from other platforms, wrong aspect ratio, cross-posted content with visible logos → distribution suppression. 10+ reposts in 30 days = full recommendation exclusion.
+
+**Optimal posting times:**
+- TikTok: Tue–Thu, 2–6 PM EST (travel content: Mon–Thu 4–6 PM)
+- IG Reels: Wed 12 PM, Thu 7 PM, Sat morning (travel-specific)
+
+**Optimal frequency:**
+- TikTok: 3–5x/week (quality maintained)
+- IG Reels: 6+ Reels/month (1–2/week minimum)
+- Quality > quantity — volume without high completion rate degrades account signals
+
+---

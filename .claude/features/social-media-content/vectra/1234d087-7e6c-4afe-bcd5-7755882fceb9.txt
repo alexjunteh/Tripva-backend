@@ -1,0 +1,39 @@
+### Viral Content Analysis
+
+**Platform Priority** (confirmed by research):
+1. **TikTok** — #TravelTok has 200B+ views. 60% of Gen Z/millennials use TikTok as primary trip planning tool. Travel is one of TikTok's strongest categories.
+2. **Instagram Reels** — 30.81% follower reach rate (highest of any IG format). Saves/DM shares are the #1 algorithm signal.
+3. **Facebook** — low priority, link-click driver only.
+
+**Video Length Sweet Spots:**
+- TikTok: 21–34 seconds (short hooks), up to 60s for demos
+- IG Reels: 15–30 seconds (26s = highest comment rate)
+- The 70% completion rate threshold on TikTok means shorter = easier to promote
+
+**The 5-Part Demo Structure (for Tripva screen recordings):**
+1. **Hook** (0–3s) — destination hero shot + bold claim ("7 days in Bali, planned in 12 seconds")
+2. **Problem** (3–7s) — "Stop opening 20 tabs" or pain point flash
+3. **Demo** (7–20s) — screen record of tripva.app generating the plan, zoomed in, cut every 2-3s
+4. **Proof** (20–25s) — show the finished itinerary dashboard, budget, photo spots
+5. **CTA** (final 5s) — "Save this for your next trip" (drives saves) or "Link in bio to try free"
+
+**Top Hook Templates for Tripva:**
+
+| Hook Type | Template | Why It Works |
+|-----------|----------|-------------|
+| POV | "POV: you just planned 7 days in [destination] in 30 seconds" | Emotional placement, curiosity |
+| Pain point | "Stop planning trips with 20 browser tabs" | Relatability, comment driver |
+| Discovery | "This AI planned my entire [destination] trip — here's what it made" | Curiosity gap |
+| Cost/budget | "I planned a $2,000 trip in 30 seconds — here's the full breakdown" | Save-bait |
+| Bold claim | "[Destination] in 30 seconds. Not a summary. A full itinerary." | Specificity hooks attention |
+| Urgency | "Watch this before you book your next trip" | FOMO/authority |
+
+**Critical Production Rules:**
+- **Raw > polished**: 31% higher engagement for authentic, unpolished content
+- **Never show full UI**: Use extreme zoom on key moments (result appearing = "money shot", 150-200% zoom + half-second hold)
+- **Cut all dead time**: No loading screens, no cursor wandering, jump from click to result
+- **No logos/intros first 5 seconds**: Kills retention immediately
+- **Native vertical (9:16)**: Never crop horizontal. No watermarks.
+- **Platform-specific edits**: TikTok = snappy, slightly unpolished, higher energy. IG Reels = polished, save-worthy info.
+
+---
