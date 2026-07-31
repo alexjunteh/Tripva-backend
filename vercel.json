@@ -187,7 +187,7 @@
     },
     {
       "path": "/api/social/cron",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 14 * * *"
     }
   ],
   "headers": [
