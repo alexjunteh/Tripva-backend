@@ -6,6 +6,7 @@ import { validateItinerary } from '../lib/itinerary-validator.js';
 import { enrichPlan } from '../lib/places.js';
 import { requireCostlyAuth, sendAuthFailure, optionalSupabaseUser } from '../lib/auth.js';
 import { checkDailyQuota } from '../lib/quota.js';
+import { getUserPlan, UPGRADE_INFO } from '../lib/pro.js';
 
 /**
  * POST /api/plan
@@ -45,7 +46,11 @@ export default async function handler(req, res) {
 
   // ── Daily quota ────────────────────────────────────────────────────────────
   const user = authCheck.user || await optionalSupabaseUser(req);
-  const quotaTier = user ? 'free' : 'anonymous';
+  let quotaTier = 'anonymous';
+  if (user) {
+    const userPlan = await getUserPlan(user.id);
+    quotaTier = userPlan.plan === 'pro' ? 'paid' : 'free';
+  }
   const quotaId = user ? `user:${user.id}` : `ip:${ip}`;
   const quota = await checkDailyQuota(quotaId, quotaTier);
 
@@ -55,7 +60,7 @@ export default async function handler(req, res) {
 
   if (!quota.allowed) {
     const msg = user
-      ? 'Daily trip limit reached. Upgrade your plan for more trips.'
+      ? 'Daily trip limit reached. Upgrade to Pro for unlimited trips.'
       : 'Daily trip limit reached. Sign in for more trips.';
     return res.status(429).json({
       error: 'Daily quota exceeded',
@@ -63,6 +68,7 @@ export default async function handler(req, res) {
       quotaLimit: quota.limit,
       quotaUsed: quota.used,
       tier: quotaTier,
+      upgrade: quotaTier !== 'paid' ? UPGRADE_INFO : undefined,
     });
   }
 

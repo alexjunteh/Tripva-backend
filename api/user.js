@@ -3,13 +3,15 @@
  * Routes:
  *   POST /api/user/magic-link
  *   POST /api/user/verify
- *   GET  /api/user/me
+ *   GET  /api/user/me          — user profile + plan status
+ *   GET  /api/user/plan        — Pro status, limits, usage, upgrade info
  *   GET  /api/user/trips
- *   POST /api/user/trips/save
+ *   POST /api/user/trips/save  — save limit: 1 free, unlimited Pro
  *   DELETE /api/user/trips/:id
  */
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../lib/middleware.js';
+import { getUserPlan, getProLimits, serializeLimits, UPGRADE_INFO } from '../lib/pro.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -88,7 +90,13 @@ export default async function handler(req, res) {
     if (!token) return res.status(401).json({ error: 'No token' });
     const { data: { user }, error } = await anonClient(token).auth.getUser(token);
     if (error || !user) return res.status(401).json({ error: 'Invalid token' });
-    return res.status(200).json({ id: user.id, email: user.email });
+    const userPlan = await getUserPlan(user.id);
+    return res.status(200).json({
+      id: user.id,
+      email: user.email,
+      plan: userPlan.plan,
+      limits: serializeLimits(userPlan.limits),
+    });
   }
 
   // GET /api/user/trips
@@ -107,6 +115,26 @@ export default async function handler(req, res) {
     return res.status(200).json(enriched);
   }
 
+  // GET /api/user/plan — Pro status, limits, usage
+  if (req.method === 'GET' && url.endsWith('/plan')) {
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const { data: { user }, error } = await anonClient(token).auth.getUser(token);
+    if (error || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const userPlan = await getUserPlan(user.id);
+    const { count: savedCount } = await anonClient(token).from('trips')
+      .select('id', { count: 'exact', head: true });
+
+    return res.status(200).json({
+      plan: userPlan.plan,
+      limits: serializeLimits(userPlan.limits),
+      usage: { savedTrips: savedCount || 0 },
+      canUpgrade: userPlan.plan !== 'pro',
+      hasStripeCustomer: !!userPlan.stripeCustomerId,
+      upgrade: userPlan.plan !== 'pro' ? UPGRADE_INFO : null,
+    });
+  }
+
   // POST /api/user/trips/save
   if (req.method === 'POST' && url.includes('trips/save')) {
     const { plan, shareUrl, gistId } = req.body || {};
@@ -114,6 +142,22 @@ export default async function handler(req, res) {
     if (!token) return res.status(200).json({ saved: false, shareUrl });
     const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
     if (authErr || !user) return res.status(200).json({ saved: false, shareUrl });
+
+    // Pro gate: free users can save 1 trip, Pro unlimited
+    const userPlan = await getUserPlan(user.id);
+    if (userPlan.plan !== 'pro') {
+      const { count } = await anonClient(token).from('trips')
+        .select('id', { count: 'exact', head: true });
+      if ((count || 0) >= userPlan.limits.savedTrips) {
+        return res.status(403).json({
+          error: 'save_limit_reached',
+          message: `Free plan allows ${userPlan.limits.savedTrips} saved trip. Upgrade to Pro for unlimited.`,
+          limit: userPlan.limits.savedTrips,
+          current: count,
+          upgrade: UPGRADE_INFO,
+        });
+      }
+    }
 
     // Schema has `gist_id`, not `share_url`. Extract the gist id from shareUrl
     // if the client didn't pass it explicitly.
