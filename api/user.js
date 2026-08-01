@@ -1,5 +1,5 @@
 /**
- * /api/user — unified auth + trips endpoint
+ * /api/user — unified auth + trips + collaboration endpoint
  * Routes:
  *   POST /api/user/magic-link
  *   POST /api/user/verify
@@ -8,6 +8,11 @@
  *   GET  /api/user/trips
  *   POST /api/user/trips/save  — save limit: 1 free, unlimited Pro
  *   DELETE /api/user/trips/:id
+ *   POST /api/user/collab/invite   — invite collaborator (Pro only)
+ *   POST /api/user/collab/accept   — accept invite by token
+ *   GET  /api/user/collab?trip_id=X — list collaborators
+ *   DELETE /api/user/collab/:id     — remove collaborator (owner only)
+ *   GET  /api/user/shared-trips     — trips shared with me
  */
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../lib/middleware.js';
@@ -198,6 +203,125 @@ export default async function handler(req, res) {
     if (error) return res.status(400).json({ error: error.message });
     if (!data?.length) return res.status(404).json({ error: 'Trip not found' });
     return res.status(200).json({ ok: true });
+  }
+
+  // ── POST /api/user/collab/invite — create invite link (Pro only) ────────
+  if (req.method === 'POST' && url.includes('collab/invite')) {
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const userPlan = await getUserPlan(user.id);
+    if (userPlan.plan !== 'pro') {
+      return res.status(403).json({ error: 'pro_required', message: 'Collaborative trips require Pro.', upgrade: UPGRADE_INFO });
+    }
+
+    const { tripId, email, role } = req.body || {};
+    if (!tripId) return res.status(400).json({ error: 'tripId required' });
+    const collabRole = (role === 'editor') ? 'editor' : 'viewer';
+
+    const sb = serviceClient();
+    const { data: trip } = await sb.from('trips').select('id, user_id').eq('id', tripId).maybeSingle();
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+    if (trip.user_id !== user.id) return res.status(403).json({ error: 'Only the trip owner can invite' });
+
+    const inviteToken = crypto.randomUUID();
+    const { data: collab, error } = await sb.from('trip_collaborators').insert({
+      trip_id: tripId,
+      invited_by: user.id,
+      role: collabRole,
+      invite_token: inviteToken,
+      invite_email: email || null,
+    }).select('id, invite_token, role').single();
+
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Already invited' });
+      return res.status(400).json({ error: error.message });
+    }
+    const inviteUrl = `https://tripva.app/trip.html?invite=${inviteToken}`;
+    return res.status(200).json({ id: collab.id, inviteUrl, inviteToken, role: collabRole });
+  }
+
+  // ── POST /api/user/collab/accept — accept invite by token ─────────────
+  if (req.method === 'POST' && url.includes('collab/accept')) {
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const { inviteToken: iToken } = req.body || {};
+    if (!iToken) return res.status(400).json({ error: 'inviteToken required' });
+
+    const sb = serviceClient();
+    const { data: invite } = await sb.from('trip_collaborators')
+      .select('id, trip_id, invited_by, role, accepted_at')
+      .eq('invite_token', iToken).maybeSingle();
+
+    if (!invite) return res.status(404).json({ error: 'Invite not found or expired' });
+    if (invite.accepted_at) return res.status(200).json({ ok: true, alreadyAccepted: true, tripId: invite.trip_id });
+
+    const { error } = await sb.from('trip_collaborators')
+      .update({ user_id: user.id, accepted_at: new Date().toISOString() })
+      .eq('id', invite.id);
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ ok: true, tripId: invite.trip_id, role: invite.role });
+  }
+
+  // ── GET /api/user/collab?trip_id=X — list collaborators for a trip ────
+  if (req.method === 'GET' && url.includes('/collab')) {
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const tripId = req.query?.trip_id;
+    if (!tripId) return res.status(400).json({ error: 'trip_id query param required' });
+
+    const sb = serviceClient();
+    const { data: collabs, error } = await sb.from('trip_collaborators')
+      .select('id, user_id, role, invite_email, invite_token, accepted_at, created_at')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: true });
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json(collabs || []);
+  }
+
+  // ── DELETE /api/user/collab/:id — remove collaborator (owner only) ────
+  const collabDelMatch = url.match(/\/collab\/([a-f0-9-]{36})$/);
+  if (req.method === 'DELETE' && collabDelMatch) {
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const sb = serviceClient();
+    const { data: collab } = await sb.from('trip_collaborators')
+      .select('id, trip_id').eq('id', collabDelMatch[1]).maybeSingle();
+    if (!collab) return res.status(404).json({ error: 'Collaborator not found' });
+
+    const { data: trip } = await sb.from('trips').select('user_id').eq('id', collab.trip_id).maybeSingle();
+    if (trip?.user_id !== user.id) return res.status(403).json({ error: 'Only the trip owner can remove collaborators' });
+
+    const { error } = await sb.from('trip_collaborators').delete().eq('id', collabDelMatch[1]);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ ok: true });
+  }
+
+  // ── GET /api/user/shared-trips — trips shared with me ─────────────────
+  if (req.method === 'GET' && url.includes('shared-trips')) {
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const { data: { user }, error: authErr } = await anonClient(token).auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    const sb = serviceClient();
+    const { data: collabs, error } = await sb.from('trip_collaborators')
+      .select('trip_id, role, accepted_at, trips(id, title, destination, start_date, end_date, share_url, created_at)')
+      .eq('user_id', user.id)
+      .not('accepted_at', 'is', null)
+      .order('accepted_at', { ascending: false });
+
+    if (error) return res.status(400).json({ error: error.message });
+    const trips = (collabs || []).map(c => ({ ...c.trips, role: c.role, sharedAt: c.accepted_at }));
+    return res.status(200).json(trips);
   }
 
   return res.status(404).json({ error: 'Not found', url });

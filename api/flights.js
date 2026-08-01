@@ -293,42 +293,42 @@ function tpActivityLink(req, res) {
 // ── Photo proxy (keeps Unsplash / Pexels keys server-side) ──────────────────
 
 async function proxyPhoto(req, res) {
-  const { query, source = 'unsplash' } = req.query;
+  const { query, source = 'pexels' } = req.query;
   if (!query) return res.status(400).json({ error: 'query is required' });
   const q = encodeURIComponent(String(query).slice(0, 100));
 
   try {
-    if (source === 'pexels') {
-      const key = process.env.PEXELS_API_KEY;
+    if (source === 'unsplash') {
+      const key = process.env.UNSPLASH_ACCESS_KEY;
       if (!key) return res.status(503).json({ error: 'Photo service unavailable' });
       const r = await fetch(
-        `https://api.pexels.com/v1/search?query=${q}&per_page=1&orientation=landscape`,
-        { headers: { Authorization: key }, signal: AbortSignal.timeout(8000) }
+        `https://api.unsplash.com/search/photos?query=${q}&per_page=1&orientation=landscape&client_id=${key}`,
+        { signal: AbortSignal.timeout(8000) }
       );
       if (!r.ok) return res.status(502).json({ error: 'Photo fetch failed' });
       const data = await r.json();
-      const photo = data.photos?.[0];
+      const photo = data.results?.[0];
       if (!photo) return res.status(200).json({ url: null });
       return res.status(200).json({
-        url: photo.src?.large || photo.src?.medium || null,
-        credit: { name: photo.photographer, link: photo.photographer_url },
+        url: photo.urls?.regular || photo.urls?.small || null,
+        credit: { name: photo.user?.name, link: photo.links?.html },
       });
     }
 
-    // default: unsplash
-    const key = process.env.UNSPLASH_ACCESS_KEY;
+    // default: pexels
+    const key = process.env.PEXELS_API_KEY;
     if (!key) return res.status(503).json({ error: 'Photo service unavailable' });
     const r = await fetch(
-      `https://api.unsplash.com/search/photos?query=${q}&per_page=1&orientation=landscape&client_id=${key}`,
-      { signal: AbortSignal.timeout(8000) }
+      `https://api.pexels.com/v1/search?query=${q}&per_page=1&orientation=landscape`,
+      { headers: { Authorization: key }, signal: AbortSignal.timeout(8000) }
     );
     if (!r.ok) return res.status(502).json({ error: 'Photo fetch failed' });
     const data = await r.json();
-    const photo = data.results?.[0];
+    const photo = data.photos?.[0];
     if (!photo) return res.status(200).json({ url: null });
     return res.status(200).json({
-      url: photo.urls?.regular || photo.urls?.small || null,
-      credit: { name: photo.user?.name, link: photo.links?.html },
+      url: photo.src?.large || photo.src?.medium || null,
+      credit: { name: photo.photographer, link: photo.photographer_url },
     });
   } catch (err) {
     console.error('[flights/photo]', err.message);
