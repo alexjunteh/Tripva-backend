@@ -116,7 +116,7 @@ async function fetchWikiImage(wikiSlug) {
   if (!wikiSlug) return null;
   try {
     const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiSlug)}&prop=pageimages&format=json&pithumbsize=800&origin=*`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Tripva/1.0 (tripva.live)' } });
+    const r = await fetch(url, { headers: { 'User-Agent': 'Tripva/1.0 (tripva.live)' }, signal: AbortSignal.timeout(5000) });
     if (!r.ok) return null;
     const d = await r.json();
     const pages = d?.query?.pages || {};
@@ -131,7 +131,7 @@ async function fetchPexelsPhoto(query) {
   try {
     const r = await fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
-      { headers: { Authorization: key } }
+      { headers: { Authorization: key }, signal: AbortSignal.timeout(5000) }
     );
     if (!r.ok) return null;
     const d = await r.json();
@@ -142,7 +142,7 @@ async function fetchPexelsPhoto(query) {
 async function handleSelector(req, res, destination) {
   const cacheKey = destination.toLowerCase().trim();
   const cached = selectorCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < 3600000) {
+  if (cached && Date.now() - cached.ts < (cached.ttl || 3600000)) {
     return res.status(200).json({ spots: cached.spots });
   }
 
@@ -197,7 +197,9 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
       })
     );
 
-    selectorCache.set(cacheKey, { spots: enriched, ts: Date.now() });
+    const hasPhotos = enriched.filter(s => s.photoUrl).length;
+    const cacheTtl = hasPhotos >= enriched.length / 2 ? 3600000 : 60000;
+    selectorCache.set(cacheKey, { spots: enriched, ts: Date.now(), ttl: cacheTtl });
     return res.status(200).json({ spots: enriched });
   } catch (err) {
     console.error('[/api/spots] error:', err?.message || err);
