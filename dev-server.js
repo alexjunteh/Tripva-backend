@@ -37,6 +37,7 @@ app.all('/api/packing', packingHandler);
 
 // User / auth / trips / collab endpoints (all routed through user.js)
 app.all('/api/user/magic-link', userHandler);
+app.all('/api/user/oauth', userHandler);
 app.all('/api/user/verify', userHandler);
 app.all('/api/user/me', userHandler);
 app.all('/api/user/plan', userHandler);

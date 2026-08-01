@@ -124,18 +124,6 @@
       "destination": "/api/user"
     },
     {
-      "source": "/api/user/signup",
-      "destination": "/api/user"
-    },
-    {
-      "source": "/api/user/signin",
-      "destination": "/api/user"
-    },
-    {
-      "source": "/api/user/reset-password",
-      "destination": "/api/user"
-    },
-    {
       "source": "/api/user/me",
       "destination": "/api/user"
     },
@@ -153,6 +141,26 @@
     },
     {
       "source": "/api/user/trips",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/collab/invite",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/collab/accept",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/collab/:id",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/collab",
+      "destination": "/api/user"
+    },
+    {
+      "source": "/api/user/shared-trips",
       "destination": "/api/user"
     },
     {

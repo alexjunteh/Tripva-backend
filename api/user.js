@@ -34,6 +34,7 @@ const getToken = (req) => {
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
+  try {
   const url = req.url?.split('?')[0] || '';
   const token = getToken(req);
 
@@ -325,4 +326,8 @@ export default async function handler(req, res) {
   }
 
   return res.status(404).json({ error: 'Not found', url });
+  } catch (err) {
+    console.error('[/api/user] unhandled:', err?.message || err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 }
