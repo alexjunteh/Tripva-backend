@@ -15,6 +15,7 @@ function getClient() {
 // Module-level cache keyed by destination.toLowerCase().trim()
 const spotCache = new Map();
 const selectorCache = new Map();
+const heroCache = new Map();
 
 /**
  * GET /api/photospot?destination=<city>          — photo spots for trip dashboard
@@ -23,6 +24,10 @@ const selectorCache = new Map();
  */
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
+
+  if (req.method === 'GET' && req.query.type === 'heroes') {
+    return handleHeroes(req, res);
+  }
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -185,10 +190,9 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
       ? parsed
       : Object.values(parsed).find(v => Array.isArray(v)) || [];
 
-    // Prefer Wikipedia image (specific, no watermark), fall back to Pexels
     const enriched = await Promise.all(
       spots.slice(0, 8).map(async (s) => {
-        const photoUrl = (await fetchWikiImage(s.wikiSlug)) || (await fetchPexelsPhoto(`${s.name} ${destination}`));
+        const photoUrl = (await fetchPexelsPhoto(`${s.name} ${destination}`)) || (await fetchWikiImage(s.wikiSlug));
         return photoUrl ? { ...s, photoUrl } : s;
       })
     );
@@ -201,4 +205,28 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
     if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit' });
     return res.status(500).json({ error: 'Failed to generate spots' });
   }
+}
+
+async function handleHeroes(req, res) {
+  const destinations = (req.query.destinations || '').split(',').map(d => d.trim()).filter(Boolean).slice(0, 20);
+  if (!destinations.length) {
+    return res.status(400).json({ error: 'destinations query param required (comma-separated)' });
+  }
+
+  const results = {};
+  await Promise.all(destinations.map(async d => {
+    const key = d.toLowerCase();
+    if (heroCache.has(key)) {
+      results[d] = heroCache.get(key);
+      return;
+    }
+    const url = await fetchPexelsPhoto(d + ' travel destination');
+    if (url) {
+      heroCache.set(key, url);
+      results[d] = url;
+    }
+  }));
+
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.status(200).json({ heroes: results });
 }
