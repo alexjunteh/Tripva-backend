@@ -35,13 +35,19 @@ app.all('/api/track', statsHandler);
 app.all('/api/parse-booking', parseBookingHandler);
 app.all('/api/packing', packingHandler);
 
-// User / auth / trips endpoints (all routed through user.js)
+// User / auth / trips / collab endpoints (all routed through user.js)
 app.all('/api/user/magic-link', userHandler);
 app.all('/api/user/verify', userHandler);
 app.all('/api/user/me', userHandler);
+app.all('/api/user/plan', userHandler);
 app.all('/api/user/trips/save', userHandler);
 app.all('/api/user/trips/:id', userHandler);
 app.all('/api/user/trips', userHandler);
+app.all('/api/user/collab/invite', userHandler);
+app.all('/api/user/collab/accept', userHandler);
+app.all('/api/user/collab/:id', userHandler);
+app.all('/api/user/collab', userHandler);
+app.all('/api/user/shared-trips', userHandler);
 app.all('/api/user', userHandler);
 
 app.use((req, res) => {
