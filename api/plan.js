@@ -48,8 +48,13 @@ export default async function handler(req, res) {
   const user = authCheck.user || await optionalSupabaseUser(req);
   let quotaTier = 'anonymous';
   if (user) {
-    const userPlan = await getUserPlan(user.id);
-    quotaTier = userPlan.plan === 'pro' ? 'paid' : 'free';
+    const adminList = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (user.email && adminList.includes(user.email.toLowerCase())) {
+      quotaTier = 'paid';
+    } else {
+      const userPlan = await getUserPlan(user.id);
+      quotaTier = userPlan.plan === 'pro' ? 'paid' : 'free';
+    }
   }
   const quotaId = user ? `user:${user.id}` : `ip:${ip}`;
   const quota = await checkDailyQuota(quotaId, quotaTier);
