@@ -148,7 +148,7 @@ async function handleSelector(req, res, destination) {
   const cacheKey = destination.toLowerCase().trim();
   const cached = selectorCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < (cached.ttl || 3600000)) {
-    return res.status(200).json({ spots: cached.spots });
+    return res.status(200).json({ spots: cached.spots, grouped: cached.grouped || false, regions: cached.regions || [] });
   }
 
   const openai = getClient();
@@ -156,23 +156,35 @@ async function handleSelector(req, res, destination) {
     return res.status(503).json({ error: 'Spot selector unavailable', message: 'OPENAI_API_KEY is not configured' });
   }
 
-  const prompt = `List exactly 8 iconic, photogenic places to visit in "${destination}".
+  const prompt = `You are given a travel destination: "${destination}"
+
+First determine the scope:
+A) COUNTRY or large region (e.g. "New Zealand", "Japan", "California", "Southeast Asia") → return 12–16 spots grouped by sub-region
+B) CITY or small area (e.g. "Venice", "Kyoto", "Manhattan") → return exactly 8 spots
 
 Rules:
 - Be specific (name the actual place, not "the waterfront" or "old town")
 - Vary the types: mix landmarks, nature, culture, food scenes, viewpoints
 - Descriptions must be a single concrete fact or sensory detail — NOT generic travel copy. Bad: "explore the vibrant chaos". Good: "free-fall glass slide on the 69th floor" or "1000-year-old banyan tree shades the courtyard"
+- For scope A: distribute spots evenly across 2–4 sub-regions. Each sub-region should have 3–5 spots.
 
-Return JSON with a "spots" array of exactly 8 objects, each with:
+Return JSON:
+{
+  "scope": "country" or "city",
+  "spots": [...]
+}
+
+Each spot object must have:
 - name: well-known English name
 - description: one specific, concrete sentence under 90 characters (no adjectives like "vibrant", "stunning", "rich tapestry")
 - category: one of landmark | museum | culture | nature | view | beach | market | temple | park | street | adventure | food
+- region: sub-region name (e.g. "South Island", "North Island" for New Zealand; for cities just use the city name)
 - wikiSlug: exact Wikipedia article title with underscores (e.g. "Colosseum") — must be a real Wikipedia page`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: MODEL,
-      max_tokens: 1200,
+      max_tokens: 2048,
       temperature: 0.4,
       messages: [
         { role: 'system', content: 'You are a world-class travel expert. Respond ONLY with valid JSON.' },
@@ -195,8 +207,11 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
       ? parsed
       : Object.values(parsed).find(v => Array.isArray(v)) || [];
 
+    const scope = parsed.scope || (spots.length > 8 ? 'country' : 'city');
+    const maxSpots = scope === 'country' ? 16 : 8;
+
     const enriched = await Promise.all(
-      spots.slice(0, 8).map(async (s) => {
+      spots.slice(0, maxSpots).map(async (s) => {
         const photoUrl = (await fetchPexelsPhoto(`${s.name} ${destination}`)) || (await fetchWikiImage(s.wikiSlug));
         return photoUrl ? { ...s, photoUrl } : s;
       })
@@ -205,8 +220,11 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
     const proxied = enriched.map(s => s.photoUrl ? { ...s, photoUrl: proxyUrl(s.photoUrl) } : s);
     const hasPhotos = proxied.filter(s => s.photoUrl).length;
     const cacheTtl = hasPhotos >= enriched.length / 2 ? 3600000 : 60000;
-    selectorCache.set(cacheKey, { spots: proxied, ts: Date.now(), ttl: cacheTtl });
-    return res.status(200).json({ spots: proxied });
+
+    const grouped = scope === 'country';
+    const regions = grouped ? [...new Set(proxied.map(s => s.region).filter(Boolean))] : [];
+    selectorCache.set(cacheKey, { spots: proxied, grouped, regions, ts: Date.now(), ttl: cacheTtl });
+    return res.status(200).json({ spots: proxied, grouped, regions });
   } catch (err) {
     console.error('[/api/spots] error:', err?.message || err);
     if (err?.status === 401) return res.status(500).json({ error: 'Configuration error' });
