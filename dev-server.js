@@ -31,6 +31,7 @@ app.all('/api/spots', (req, res) => {
   req.query = { ...(req.query || {}), selector: '1' };
   return photospotHandler(req, res);
 });
+app.all('/api/img', photospotHandler);
 app.all('/api/track', statsHandler);
 app.all('/api/parse-booking', parseBookingHandler);
 app.all('/api/packing', packingHandler);

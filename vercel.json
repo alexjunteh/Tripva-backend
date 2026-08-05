@@ -120,6 +120,10 @@
       "destination": "/api/photospot?selector=1"
     },
     {
+      "source": "/api/img",
+      "destination": "/api/photospot"
+    },
+    {
       "source": "/api/user/verify",
       "destination": "/api/user"
     },
