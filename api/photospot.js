@@ -29,6 +29,10 @@ export default async function handler(req, res) {
     return handleHeroes(req, res);
   }
 
+  if (req.method === 'GET' && req.query._img) {
+    return handleImgProxy(req, res);
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -101,7 +105,8 @@ export default async function handler(req, res) {
       })
     );
 
-    const result = { ...parsed, spots: enriched };
+    const proxied = enriched.map(s => s.photoUrl ? { ...s, photoUrl: proxyUrl(s.photoUrl) } : s);
+    const result = { ...parsed, spots: proxied };
     spotCache.set(key, result);
     return res.status(200).json(result);
   } catch (err) {
@@ -197,15 +202,51 @@ Return JSON with a "spots" array of exactly 8 objects, each with:
       })
     );
 
-    const hasPhotos = enriched.filter(s => s.photoUrl).length;
+    const proxied = enriched.map(s => s.photoUrl ? { ...s, photoUrl: proxyUrl(s.photoUrl) } : s);
+    const hasPhotos = proxied.filter(s => s.photoUrl).length;
     const cacheTtl = hasPhotos >= enriched.length / 2 ? 3600000 : 60000;
-    selectorCache.set(cacheKey, { spots: enriched, ts: Date.now(), ttl: cacheTtl });
-    return res.status(200).json({ spots: enriched });
+    selectorCache.set(cacheKey, { spots: proxied, ts: Date.now(), ttl: cacheTtl });
+    return res.status(200).json({ spots: proxied });
   } catch (err) {
     console.error('[/api/spots] error:', err?.message || err);
     if (err?.status === 401) return res.status(500).json({ error: 'Configuration error' });
     if (err?.status === 429) return res.status(503).json({ error: 'Upstream rate limit' });
     return res.status(500).json({ error: 'Failed to generate spots' });
+  }
+}
+
+const ALLOWED_IMG_HOSTS = ['images.pexels.com', 'upload.wikimedia.org'];
+
+function proxyUrl(externalUrl) {
+  if (!externalUrl) return null;
+  try {
+    const host = new URL(externalUrl).hostname;
+    if (!ALLOWED_IMG_HOSTS.includes(host)) return externalUrl;
+  } catch { return externalUrl; }
+  return '/api/img?_img=' + encodeURIComponent(externalUrl);
+}
+
+async function handleImgProxy(req, res) {
+  const raw = req.query._img;
+  if (!raw) return res.status(400).end();
+  let url;
+  try { url = new URL(raw); } catch { return res.status(400).end(); }
+  if (!ALLOWED_IMG_HOSTS.includes(url.hostname)) return res.status(403).end();
+  try {
+    const upstream = await fetch(raw, {
+      headers: { 'User-Agent': 'Tripva/1.0' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    if (!upstream.ok) return res.status(upstream.status).end();
+    const ct = upstream.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    return res.status(200).send(buf);
+  } catch {
+    return res.status(502).end();
   }
 }
 
