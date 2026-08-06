@@ -125,15 +125,16 @@ export default async function handler(req, res) {
 
     sendEvent({ type: 'start', message: 'Planning your trip...' });
 
-    // 270s total timeout — ensures done event is always sent
+    // 240s total timeout — leaves 60s headroom under Vercel's 300s maxDuration
+    // so the done event always beats a platform 504
     let doneSent = false;
     const safeSend = (obj) => { sendEvent(obj); if (obj.type === 'done') doneSent = true; };
     const totalTimeout = setTimeout(() => {
       if (!doneSent) {
-        console.warn('[plan] Progressive generation timed out after 270s');
+        console.warn('[plan] Progressive generation timed out after 240s');
         safeSend({ type: 'done', data: { plan: null, saved: null } });
       }
-    }, 270000);
+    }, 240000);
 
     try {
       const rawPlan = await generatePlanProgressive(input, safeSend);
