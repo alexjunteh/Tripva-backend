@@ -61,4 +61,32 @@ const hasPhotospot = enriched.days[0].timeline.some(t => t.type === 'photospot')
 assert(hasPhotospot, 'enrichPlan should add photospots to Rome day');
 console.log('✅ Test 8: enrichPlan adds photospots');
 
-console.log('\n✅ All 8 tests passed!');
+// ── Test 9: enrichPlan strips loremflickr URLs from day images ───────────────
+const flickrPlan = {
+  days: [{
+    day: 1,
+    title: "Tokyo Day 1",
+    city: "Tokyo",
+    imageUrl: "https://loremflickr.com/800/600/tokyo",
+    timeline: [],
+  }, {
+    day: 2,
+    title: "Tokyo Day 2",
+    city: "Tokyo",
+    imageUrl: "https://images.unsplash.com/photo-valid",
+    timeline: [],
+  }, {
+    day: 3,
+    title: "Tokyo Day 3",
+    city: "Tokyo",
+    imageUrl: "",
+    timeline: [],
+  }],
+};
+const flickrEnriched = enrichPlan(flickrPlan);
+assert(flickrEnriched.days[0].imageUrl === '', 'Day 1 loremflickr URL should be stripped to empty');
+assert(flickrEnriched.days[1].imageUrl === 'https://images.unsplash.com/photo-valid', 'Day 2 Unsplash URL should be preserved');
+assert(flickrEnriched.days[2].imageUrl === '', 'Day 3 empty URL should stay empty');
+console.log('✅ Test 9: enrichPlan strips loremflickr URLs');
+
+console.log('\n✅ All 9 tests passed!');

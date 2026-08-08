@@ -12,6 +12,7 @@ die() { red "ERROR: $*"; exit 1; }
 
 SKIP_TESTS=false
 SKIP_SMOKE=false
+SKIP_QA=false
 AUTO_YES=false
 TARGET_SHA=""
 
@@ -19,17 +20,19 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-tests)  SKIP_TESTS=true; shift ;;
     --skip-smoke)  SKIP_SMOKE=true; shift ;;
+    --skip-qa)     SKIP_QA=true; shift ;;
     --yes|-y)      AUTO_YES=true; shift ;;
     --sha)         TARGET_SHA="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: release.sh [--sha <commit>] [--skip-tests] [--skip-smoke] [--yes]"
+      echo "Usage: release.sh [--sha <commit>] [--skip-tests] [--skip-smoke] [--skip-qa] [--yes]"
       echo ""
-      echo "Steps: verify clean → tests → preview deploy → smoke → promote → tag"
+      echo "Steps: verify clean → tests → preview deploy → smoke → QA gate → promote → tag"
       echo ""
       echo "Options:"
       echo "  --sha <commit>   Deploy a specific commit (default: HEAD)"
       echo "  --skip-tests     Skip vitest (use if CI already passed)"
       echo "  --skip-smoke     Skip smoke suite (not recommended)"
+      echo "  --skip-qa        Skip visual QA gate (not recommended)"
       echo "  --yes / -y       Skip confirmation prompts"
       exit 0 ;;
     *) die "Unknown option: $1" ;;
@@ -114,18 +117,29 @@ else
   green "Smoke tests passed"
 fi
 
-# ── Step 5: Record current prod (for rollback) ──────────────────────
+# ── Step 5: QA gate (visual + API quality) ───────────────────────────
 
-bold "=== Step 5: Record current production deployment ==="
+bold "=== Step 5: QA gate ==="
+
+if $SKIP_QA; then
+  echo "Skipped (--skip-qa)"
+else
+  bash "$REPO_ROOT/scripts/qa.sh" "$PREVIEW_URL" || die "QA gate failed — preview NOT promoted"
+  green "QA gate passed"
+fi
+
+# ── Step 6: Record current prod (for rollback) ──────────────────────
+
+bold "=== Step 6: Record current production deployment ==="
 
 CURRENT_PROD=$(vercel inspect tripai-backend.vercel.app 2>&1 | grep -oE 'dpl_[a-zA-Z0-9]+' | head -1 || echo "unknown")
 echo "Current prod deployment: $CURRENT_PROD"
 echo "  To rollback: vercel promote $CURRENT_PROD --yes"
 echo ""
 
-# ── Step 6: Promote to production ────────────────────────────────────
+# ── Step 7: Promote to production ────────────────────────────────────
 
-bold "=== Step 6: Promote preview to production ==="
+bold "=== Step 7: Promote preview to production ==="
 
 PREVIEW_DPL=$(vercel inspect "$PREVIEW_URL" 2>&1 | grep -oE 'dpl_[a-zA-Z0-9]+' | head -1 || echo "")
 if [[ -z "$PREVIEW_DPL" ]]; then
@@ -141,9 +155,9 @@ vercel promote "$PREVIEW_DPL" --yes || die "Promote failed"
 echo "Waiting 5s for alias propagation..."
 sleep 5
 
-# ── Step 7: Post-promote health check ────────────────────────────────
+# ── Step 8: Post-promote health check ────────────────────────────────
 
-bold "=== Step 7: Post-promote health check ==="
+bold "=== Step 8: Post-promote health check ==="
 
 HEALTH=$(curl -sS --max-time 10 "https://tripai-backend.vercel.app/api/health" 2>&1)
 if echo "$HEALTH" | grep -q '"ok"'; then
@@ -154,9 +168,9 @@ else
   die "Post-promote health check failed"
 fi
 
-# ── Step 8: Tag release ──────────────────────────────────────────────
+# ── Step 9: Tag release ──────────────────────────────────────────────
 
-bold "=== Step 8: Tag release ==="
+bold "=== Step 9: Tag release ==="
 
 LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1 || echo "")
 if [[ -z "$LATEST_TAG" ]]; then
