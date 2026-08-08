@@ -11,6 +11,11 @@ PASS=0
 FAIL=0
 TOTAL=0
 
+BYPASS_HEADER=""
+if [[ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
+  BYPASS_HEADER="-H x-vercel-protection-bypass:${VERCEL_AUTOMATION_BYPASS_SECRET}"
+fi
+
 red()   { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
@@ -20,7 +25,7 @@ check() {
   TOTAL=$((TOTAL + 1))
 
   local resp status body
-  resp=$(curl -sS -w '\n__HTTP_STATUS__%{http_code}' --max-time 15 "$url" 2>&1) || {
+  resp=$(curl -sS -w '\n__HTTP_STATUS__%{http_code}' --max-time 15 $BYPASS_HEADER "$url" 2>&1) || {
     FAIL=$((FAIL + 1))
     red "FAIL [$label] curl error: $resp"
     return
@@ -71,7 +76,7 @@ check "user-unauthed" "$BASE/api/user/me" 401
 
 # 5. Stripe checkout (POST-only) without auth returns 401
 TOTAL=$((TOTAL + 1))
-STRIPE_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -X POST "$BASE/api/stripe/checkout" 2>/dev/null || echo "000")
+STRIPE_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 $BYPASS_HEADER -X POST "$BASE/api/stripe/checkout" 2>/dev/null || echo "000")
 if [[ "$STRIPE_STATUS" == "401" ]]; then
   PASS=$((PASS + 1))
   green "PASS [stripe-unauthed]"
@@ -94,6 +99,7 @@ check "social-status" "$BASE/api/social/status" 401
 
 # 10. SSE plan endpoint — POST with minimal body, just verify it connects and starts streaming
 SSE_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
+  $BYPASS_HEADER \
   -X POST -H 'Content-Type: application/json' \
   -d '{"destinations":["Tokyo"],"startDate":"2026-09-01","endDate":"2026-09-03","travelers":1}' \
   "$BASE/api/plan" 2>/dev/null || echo "000")

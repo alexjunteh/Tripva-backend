@@ -101,6 +101,15 @@ if $SKIP_SMOKE; then
 else
   echo "Waiting 10s for functions to warm up..."
   sleep 10
+  if [[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]; then
+    tmpenv="/tmp/tripva-env-$$"
+    vercel env pull "$tmpenv" --environment preview --yes >/dev/null 2>&1 || true
+    if [[ -f "$tmpenv" ]]; then
+      VERCEL_AUTOMATION_BYPASS_SECRET=$(grep '^VERCEL_AUTOMATION_BYPASS_SECRET=' "$tmpenv" | cut -d= -f2- | tr -d '"' || echo "")
+      rm -f "$tmpenv"
+    fi
+    export VERCEL_AUTOMATION_BYPASS_SECRET
+  fi
   bash "$REPO_ROOT/scripts/smoke.sh" "$PREVIEW_URL" || die "Smoke tests failed — preview NOT promoted"
   green "Smoke tests passed"
 fi
