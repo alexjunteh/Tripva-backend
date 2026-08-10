@@ -13,8 +13,8 @@ export default async function handler(req, res) {
   if (req.query?._health === '1') {
     return res.status(200).json({
       status: 'ok',
-      service: 'tripai-backend',
-      version: '1.0.0',
+      service: 'tripva-backend',
+      version: '1.1.0',
       timestamp: new Date().toISOString(),
     });
   }
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     const headers = {
       'Authorization': `token ${GITHUB_TOKEN}`,
       'Accept': 'application/vnd.github.v3+json',
-      'User-Agent': 'tripva-tripai'
+      'User-Agent': 'tripva-backend'
     };
 
     while (page <= 5) {
