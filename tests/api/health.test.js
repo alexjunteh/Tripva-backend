@@ -9,7 +9,7 @@ describe('GET /api/health (via stats?_health=1)', () => {
     const res = await req.get('/api/health?_health=1')
     expect(res.status).toBe(200)
     expect(res.body.status).toBe('ok')
-    expect(res.body.service).toBe('tripai-backend')
+    expect(res.body.service).toBe('tripva-backend')
     expect(res.body.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/)
   })
 

@@ -1,6 +1,6 @@
 {
-  "name": "tripai-backend",
-  "version": "1.0.0",
+  "name": "tripva-backend",
+  "version": "1.1.0",
   "type": "module",
   "description": "AI trip planner backend — Vercel serverless functions",
   "main": "dev-server.js",

@@ -121,7 +121,7 @@ async function fetchWikiImage(wikiSlug) {
   if (!wikiSlug) return null;
   try {
     const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiSlug)}&prop=pageimages&format=json&pithumbsize=800&origin=*`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Tripva/1.0 (tripva.live)' }, signal: AbortSignal.timeout(5000) });
+    const r = await fetch(url, { headers: { 'User-Agent': 'Tripva/1.0 (tripva.app)' }, signal: AbortSignal.timeout(5000) });
     if (!r.ok) return null;
     const d = await r.json();
     const pages = d?.query?.pages || {};
