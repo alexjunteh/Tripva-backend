@@ -184,6 +184,115 @@ function makeDay(dayNum, timeline) {
   assert(!warnings.some(w => w.check === 'unbooked-prereq'), 'No warning when booking ref present');
 }
 
+// ─── TEST: CHECK 11 — Geographic plausibility (haversine) ────────────────────
+{
+  console.log('\nTEST: Geographic implausible jump (Wellington→Milford Sound, no transport)');
+  const plan = {
+    rawPlan: {
+      days: [
+        { day: 1, city: 'Wellington', timeline: [{ type: 'activity', time: '10:00', title: 'Te Papa Museum', mapQuery: 'Te Papa, Wellington' }] },
+        { day: 2, city: 'Milford Sound', timeline: [{ type: 'activity', time: '10:00', title: 'Cruise', mapQuery: 'Milford Sound, New Zealand' }] },
+      ],
+      mapStops: [
+        { name: 'Wellington', lat: -41.2865, lng: 174.7762, type: 'stay' },
+        { name: 'Milford Sound', lat: -44.6714, lng: 167.9266, type: 'stay' },
+      ],
+    },
+  };
+  const { warnings } = validateItinerary(plan);
+  assert(warnings.some(w => w.check === 'geographic-implausible'), 'Warns on 700+ km jump with no transport item');
+}
+
+{
+  console.log('\nTEST: Geographic jump with transport item → no implausible warning');
+  const plan = {
+    rawPlan: {
+      days: [
+        { day: 1, city: 'Wellington', timeline: [{ type: 'activity', time: '10:00', title: 'Te Papa', mapQuery: 'Te Papa, Wellington' }] },
+        { day: 2, city: 'Queenstown', timeline: [
+          { type: 'transport', time: '08:00', title: 'Flight to Queenstown', mapQuery: 'Queenstown Airport' },
+          { type: 'activity', time: '14:00', title: 'Skyline Gondola', mapQuery: 'Skyline Queenstown' },
+        ] },
+      ],
+      mapStops: [
+        { name: 'Wellington', lat: -41.2865, lng: 174.7762, type: 'stay' },
+        { name: 'Queenstown', lat: -45.0312, lng: 168.6626, type: 'stay' },
+      ],
+    },
+  };
+  const { warnings } = validateItinerary(plan);
+  assert(!warnings.some(w => w.check === 'geographic-implausible'), 'No implausible warning when transport item exists');
+  assert(warnings.some(w => w.check === 'geographic-long-transit'), 'Still warns about long transit distance');
+}
+
+{
+  console.log('\nTEST: Same city consecutive days → no geographic warning');
+  const plan = {
+    rawPlan: {
+      days: [
+        { day: 1, city: 'Tokyo', timeline: [{ type: 'activity', time: '10:00', title: 'Shibuya', mapQuery: 'Shibuya, Tokyo' }] },
+        { day: 2, city: 'Tokyo', timeline: [{ type: 'activity', time: '10:00', title: 'Asakusa', mapQuery: 'Asakusa, Tokyo' }] },
+      ],
+      mapStops: [{ name: 'Tokyo', lat: 35.6762, lng: 139.6503, type: 'stay' }],
+    },
+  };
+  const { warnings } = validateItinerary(plan);
+  assert(!warnings.some(w => w.check?.startsWith('geographic')), 'No geographic warning for same city');
+}
+
+// ─── CHECK 12: Transport item quality ──────────────────────────────────────────
+
+{
+  console.log('\nTEST: Transport item missing from/to → warns');
+  const plan = {
+    rawPlan: {
+      days: [
+        {
+          day: 1, city: 'Tokyo', timeline: [
+            { type: 'transport', time: '09:00', title: 'Travel to Kyoto', detail: 'Take the train' },
+          ],
+        },
+      ],
+    },
+  };
+  const { warnings } = validateItinerary(plan);
+  assert(warnings.some(w => w.check === 'transport-missing-route'), 'Warns when transport has no from/to');
+}
+
+{
+  console.log('\nTEST: Transport item with from/to → no route warning');
+  const plan = {
+    rawPlan: {
+      days: [
+        {
+          day: 1, city: 'Tokyo', timeline: [
+            { type: 'transport', time: '09:00', title: '🚄 Shinkansen to Kyoto', detail: 'Nozomi, 2h15m', from: 'Tokyo Station', to: 'Kyoto Station' },
+          ],
+        },
+      ],
+    },
+  };
+  const { warnings } = validateItinerary(plan);
+  assert(!warnings.some(w => w.check === 'transport-missing-route'), 'No route warning when from/to present');
+}
+
+{
+  console.log('\nTEST: Airport/taxi transport without from/to → no warning (local transport)');
+  const plan = {
+    rawPlan: {
+      days: [
+        {
+          day: 1, city: 'Tokyo', timeline: [
+            { type: 'transport', time: '14:00', title: 'Arrive at Narita Airport', detail: 'International arrival' },
+          ],
+        },
+      ],
+    },
+  };
+  const { warnings } = validateItinerary(plan);
+  assert(!warnings.some(w => w.check === 'transport-missing-route'), 'No warning for airport arrival without from/to');
+}
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`);
 console.log(`Results: ${passed} passed, ${failed} failed`);
